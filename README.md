@@ -1,49 +1,72 @@
 # 🎯 Monopoly Live Strategy Tracker
 
-An advanced pattern analysis tool for Monopoly Live casino game, specifically designed for optimal "1" betting strategy with intelligent risk management.
+An advanced pattern analysis tool for Monopoly Live casino game, specifically designed for optimal "1" betting strategy with Martingale risk management and session tracking.
 
 ## 🚀 Features
 
+### 💰 **Session Management**
+- **Session Tracking**: Start sessions with custom capital and base bet amounts
+- **Martingale Calculator**: Automatic bet calculation with consecutive loss tracking
+- **P/L Monitoring**: Real-time profit/loss tracking with win rate statistics
+- **Session History**: Archive and review past sessions with detailed analytics
+- **Capital Protection**: Safety limits prevent catastrophic Martingale escalation
+
 ### 📊 **Data Management**
-- **Historical Data Import**: Your 400+ past results are automatically loaded and cleaned
-- **One-Click Entry**: Authentic casino color-coded buttons for instant result recording during live play
+- **One-Click Entry**: Authentic casino color-coded buttons for instant result recording
 - **Undo Feature**: Accidentally clicked wrong? One-click undo for last result
-- **Copy to Clipboard**: Get comma-separated text (newest first) for easy sharing and pasting
-- **CSV Export**: Download complete history for deep analysis in Excel/Google Sheets
-- **Data Validation**: Automatic cleaning and validation of results
-- **Session Reset**: Clear all history for fresh daily analytics with one click
+- **Persistent Storage**: All data saved locally using browser localStorage
+- **Export Options**: CSV export and clipboard copy for external analysis
+- **Session Archives**: Complete history of all betting sessions with performance metrics
 
-### 🎯 **"1" Betting Strategy**
-- **Smart Recommendations**: AI-powered betting advice based on pattern analysis
-- **Dry Spell Detection**: Tracks consecutive spins without "1" appearing
-- **Frequency Analysis**: Monitors "1" appearance rates in recent spins
-- **Risk Assessment**: Avoids high-risk patterns and long losing streaks
+### 🎯 **Smart Betting Algorithm**
+- **Pattern-Based Analysis**: Tracks "1" appearances in last 2-3 rolls
+- **Good Patterns**: 1 or 2 ones in recent rolls signal betting opportunity
+- **Bad Patterns**: No ones in recent rolls suggest waiting
+- **Safety Limits**: Automatic stop at 7+ consecutive losses
+- **Confidence Scoring**: 85% confidence ratings based on pattern analysis
 
-### ⚠️ **Enhanced Streak Prevention**
-- **5-6 Streak Protection**: Advanced algorithm prevents dangerous losing streaks  
-- **Dynamic Risk Levels**: HIGH/MEDIUM/LOW risk assessment based on consecutive losses
-- **Dangerous Pattern Detection**: 11 different pattern types that signal volatility
-- **Confidence Scoring**: 95% confidence skip recommendations at 4+ losses
-- **Real-time Alerts**: Visual streak risk indicators with color coding
+### 🎲 **Special Features**
+- **Chance Handling**: Modal for selecting cash out or multiplier options
+- **Pending Multipliers**: Track and apply multipliers from bonus rounds
+- **2 Rolls/4 Rolls**: Support for bonus game results with proper tracking
+- **Real-time Recommendations**: Visual indicators for BET/SKIP decisions
 
-### 📈 **Analytics Dashboard**
-- **Performance Metrics**: Track betting success rates and statistics
-- **Pattern Visualization**: Visual representation of recent results
-- **Trend Analysis**: Identify hot and cold streaks
-- **Historical Insights**: Deep dive into past performance
+### 📈 **Analytics & Simulation**
+- **Pattern Testing**: Built-in test function for pattern detection validation
+- **Simulation Mode**: Test strategies with comma-separated historical data
+- **Performance Charts**: Visual representation using Recharts library
+- **Debug Information**: Detailed analysis data for strategy optimization
 
 ## 🛠️ Installation
 
-1. **Clone or Download** this project
-2. **Install Dependencies**:
+### Prerequisites
+- Node.js (v18+ recommended, tested with v23.7.0)
+- npm (v10+ recommended)
+
+### Setup Steps
+1. **Clone the repository**:
+   ```bash
+   git clone [repository-url]
+   cd monopolytracker
+   ```
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
-3. **Start the Application**:
+
+3. **Start the development server**:
    ```bash
    npm start
    ```
-4. **Open in Browser**: Navigate to `http://localhost:3000`
+
+4. **Open in browser**: Navigate to `http://localhost:3000`
+
+### Build for Production
+```bash
+npm run build
+```
+This creates an optimized production build in the `build/` directory.
 
 ## 🎮 How to Use
 
@@ -129,15 +152,35 @@ Based on your historical data:
 ## 🔧 Technical Details
 
 ### **Built With**
-- **React 18**: Modern UI framework
-- **Tailwind CSS**: Responsive design and styling
-- **JavaScript**: Advanced pattern analysis algorithms
+- **React 18.2.0**: Modern UI framework with hooks
+- **Tailwind CSS**: Utility-first CSS framework (via CDN)
+- **Recharts 2.8.0**: Charting library for data visualization
+- **React Scripts 5.0.1**: Create React App build tooling
+- **localStorage API**: Browser storage for data persistence
 
-### **Key Algorithms**
-- **Pattern Matching**: Identifies sequences that precede unfavorable outcomes
-- **Frequency Analysis**: Calculates appearance rates over various time windows
-- **Risk Scoring**: Combines multiple factors for intelligent recommendations
-- **Dry Spell Detection**: Tracks consecutive outcomes without target result
+### **Project Structure**
+```
+monopolytracker/
+├── public/
+│   └── index.html          # Main HTML template
+├── src/
+│   ├── App.js              # Root component
+│   ├── index.js            # Application entry point
+│   ├── index.css           # Global styles
+│   └── components/
+│       └── MonopolyTracker.js  # Main tracker component (2500+ lines)
+├── package.json            # Dependencies and scripts
+├── .gitignore              # Git ignore rules
+└── README.md               # This file
+```
+
+### **Key Features Implementation**
+- **Pattern Detection**: Analyzes last 2-3 rolls for "1" appearances
+- **Martingale System**: Automatic bet doubling with safety limits
+- **Session Management**: Complete session lifecycle with archiving
+- **Local Storage**: Automatic save/load of all application state
+- **Chance Modal**: Interactive UI for bonus round selections
+- **Export Functions**: CSV generation and clipboard operations
 
 ## 🎯 Strategy Tips
 
