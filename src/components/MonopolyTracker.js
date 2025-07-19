@@ -29,8 +29,11 @@ const MonopolyTracker = () => {
   const [showChanceModal, setShowChanceModal] = useState(false);
   const [chanceModalData, setChanceModalData] = useState(null);
   
-  // Pending multiplier state
-  const [pendingMultiplier, setPendingMultiplier] = useState(null);
+  // Chance state model
+  const [chanceState, setChanceState] = useState({
+    stackedMultiplier: 1,   // always ≥ 1
+    pendingCash: 0          // cumulative cash chosen
+  });
   
   // Simulation state
   const [simulationData, setSimulationData] = useState([]);
@@ -78,8 +81,8 @@ const MonopolyTracker = () => {
         setShowChanceModal(data.showChanceModal || false);
         setChanceModalData(data.chanceModalData || null);
         
-        // Load pending multiplier state
-        setPendingMultiplier(data.pendingMultiplier || null);
+        // Load chance state
+        setChanceState(data.chanceState || { stackedMultiplier: 1, pendingCash: 0 });
         
         // Load simulation state
         setSimulationData(data.simulationData || []);
@@ -115,7 +118,7 @@ const MonopolyTracker = () => {
         sessionArchived, // Save sessionArchived state
         showChanceModal,
         chanceModalData,
-        pendingMultiplier,
+        chanceState,
         simulationData,
         simulationInput,
         simulationCapital,
@@ -124,7 +127,7 @@ const MonopolyTracker = () => {
       };
       localStorage.setItem('monopolyTrackerData', JSON.stringify(dataToSave));
     }
-  }, [dataLoaded, results, resultTimestamps, totalBets, successfulBets, sessionActive, startingCapital, currentCapital, baseBet, currentBetAmount, consecutiveLosses, betsPlaced, sessionProfit, sessionStartTime, sessionEndTime, sessionHistory, sessionArchived, showChanceModal, chanceModalData, pendingMultiplier, simulationData, simulationInput, simulationCapital, simulationBaseBet, highestMartingale]);
+  }, [dataLoaded, results, resultTimestamps, totalBets, successfulBets, sessionActive, startingCapital, currentCapital, baseBet, currentBetAmount, consecutiveLosses, betsPlaced, sessionProfit, sessionStartTime, sessionEndTime, sessionHistory, sessionArchived, showChanceModal, chanceModalData, chanceState, simulationData, simulationInput, simulationCapital, simulationBaseBet, highestMartingale]);
 
 
   // Calculate Martingale bet amount
@@ -400,10 +403,10 @@ const MonopolyTracker = () => {
         reason = `✅ GOOD PATTERN: ${patternAnalysis.reason} - Safe to bet`;
         bettingMode = 'GOOD_PATTERN';
       } else {
-        shouldBet = false;
-        confidence = 85;
-        reason = `❌ BAD PATTERN: ${patternAnalysis.reason} - Wait for good pattern`;
-        bettingMode = 'BAD_PATTERN';
+      shouldBet = false;
+      confidence = 85;
+      reason = `❌ BAD PATTERN or POST-CHANCE CASH: ${patternAnalysis.reason} - Waiting for 1 or good pattern`;
+      bettingMode = 'BAD_PATTERN or POST-CHANCE';
       }
     }
 
@@ -440,36 +443,39 @@ const MonopolyTracker = () => {
     }
     
     // Check for pending multiplier from previous Chance
-    if (pendingMultiplier && sessionActive) {
+    if ((chanceState.stackedMultiplier > 1 || chanceState.pendingCash > 0) && sessionActive) {
+      // Determine if player had a bet
+      const shouldBet = sessionActive && currentBetAmount <= currentCapital;
       const won = result === '1';
       
-      if (pendingMultiplier.shouldBet) {
+      if (currentBetAmount > 0 && shouldBet) {
+        // Bet was placed
         if (won) {
-          // Multiplier win: Add bet amount × multiplier to capital
-          const winAmount = pendingMultiplier.betAmount * pendingMultiplier.multiplier;
+          const winAmount = currentBetAmount * chanceState.stackedMultiplier + chanceState.pendingCash;
           const newCapital = currentCapital + winAmount;
           setCurrentCapital(newCapital);
           setSessionProfit(newCapital - startingCapital);
-          
-          // Reset consecutive losses and bet amount (multiplier win resets martingale)
           setConsecutiveLosses(0);
           setCurrentBetAmount(baseBet);
           setSuccessfulBets(prev => prev + 1);
           
           // Add a special bet record for the multiplier win
           const newBet = {
-            amount: pendingMultiplier.betAmount,
+            amount: currentBetAmount,
             won: true,
             timestamp: new Date().toISOString(),
             previousConsecutiveLosses: consecutiveLosses,
             chanceType: 'multiplier',
-            multiplier: pendingMultiplier.multiplier,
+            multiplier: chanceState.stackedMultiplier,
             winAmount: winAmount
           };
           setBetsPlaced(prev => [...prev, newBet]);
           setTotalBets(prev => prev + 1);
         } else {
           // Multiplier loss: Continue martingale (bet amount increases)
+          const newCapital = currentCapital - currentBetAmount;
+          setCurrentCapital(newCapital);
+          setSessionProfit(newCapital - startingCapital);
           const newConsecutiveLosses = consecutiveLosses + 1;
           setConsecutiveLosses(newConsecutiveLosses);
           const newBetAmount = calculateMartingaleBet(baseBet, newConsecutiveLosses);
@@ -477,20 +483,20 @@ const MonopolyTracker = () => {
           
           // Add a bet record for the multiplier loss
           const newBet = {
-            amount: pendingMultiplier.betAmount,
+            amount: currentBetAmount,
             won: false,
             timestamp: new Date().toISOString(),
             previousConsecutiveLosses: consecutiveLosses,
             chanceType: 'multiplier',
-            multiplier: pendingMultiplier.multiplier
+            multiplier: chanceState.stackedMultiplier
           };
           setBetsPlaced(prev => [...prev, newBet]);
           setTotalBets(prev => prev + 1);
         }
       }
       
-      // Clear pending multiplier
-      setPendingMultiplier(null);
+      // Reset Chance State after processing
+      setChanceState({ stackedMultiplier: 1, pendingCash: 0 });
     } else {
       // Regular processing for non-multiplier results
       // Get the current recommendation BEFORE processing (this is what the user saw)
@@ -515,15 +521,11 @@ const MonopolyTracker = () => {
 
   // Handle Chance modal - Multiplier choice
   const handleChanceMultiplier = (multiplierValue) => {
-    // Store the multiplier for the next result
-    const multiplierData = {
-      multiplier: multiplierValue,
-      betAmount: chanceModalData.betAmount,
-      shouldBet: chanceModalData.shouldBet,
-      timestamp: new Date().toISOString()
-    };
-    
-    setPendingMultiplier(multiplierData);
+// Update chanceState with the new multiplier using updater function
+    setChanceState(prev => ({
+      ...prev,
+      stackedMultiplier: prev.stackedMultiplier * multiplierValue
+    }));
     
     // Add the "chance" result to the results array
     const timestamp = new Date().toISOString();
@@ -539,38 +541,40 @@ const MonopolyTracker = () => {
 
   // Handle Chance modal - Cash choice
   const handleChanceCash = (cashAmount) => {
-    // Reset martingale and add cash to P/L
-    if (sessionActive) {
-      // If there was a bet active, handle it as a special "cash" win
-      if (chanceModalData.shouldBet) {
-        // Add cash amount to capital
-        const newCapital = currentCapital + cashAmount;
-        setCurrentCapital(newCapital);
-        setSessionProfit(newCapital - startingCapital);
-        
-        // Reset consecutive losses and bet amount (cash resets the martingale)
-        setConsecutiveLosses(0);
-        setCurrentBetAmount(baseBet);
-        setSuccessfulBets(prev => prev + 1);
-        
-        // Add a special bet record for the cash win
-        const newBet = {
-          amount: chanceModalData.betAmount,
-          won: true,
-          timestamp: new Date().toISOString(),
-          previousConsecutiveLosses: consecutiveLosses,
-          chanceType: 'cash',
-          cashAmount: cashAmount
-        };
-        setBetsPlaced(prev => [...prev, newBet]);
-        setTotalBets(prev => prev + 1);
-      } else {
-        // No bet was placed, just add cash to capital
-        const newCapital = currentCapital + cashAmount;
-        setCurrentCapital(newCapital);
-        setSessionProfit(newCapital - startingCapital);
-      }
-    }
+    console.log('🎲 handleChanceCash called with amount:', cashAmount);
+    console.log('📊 Before state changes:');
+    console.log('  - currentCapital:', currentCapital);
+    console.log('  - consecutiveLosses:', consecutiveLosses);
+    console.log('  - currentBetAmount:', currentBetAmount);
+    console.log('  - baseBet:', baseBet);
+    
+// Immediate update to capital and session profit
+    const newCapital = currentCapital + cashAmount;
+    setCurrentCapital(newCapital);
+    setSessionProfit(newCapital - startingCapital);
+    
+    // Reset martingale
+    console.log('🔄 Resetting martingale:');
+    console.log('  - Setting consecutiveLosses to 0');
+    console.log('  - Setting currentBetAmount to', baseBet);
+    setConsecutiveLosses(0);
+    setCurrentBetAmount(baseBet);
+    
+    // Create a cash-type bet record
+    const cashBet = {
+      amount: 0,                 // no wager placed
+      won: true,                 // always a "win" because money is added
+      timestamp: new Date().toISOString(),
+      chanceType: 'cash',
+      cashAmount                 // variable from function parameter
+    };
+    setBetsPlaced(prev => [...prev, cashBet]);
+    
+    // Accumulate pending cash
+    setChanceState(prev => ({
+      ...prev,
+      pendingCash: prev.pendingCash + cashAmount
+    }));
     
     // Add the "chance" result to the results array
     const timestamp = new Date().toISOString();
@@ -582,6 +586,12 @@ const MonopolyTracker = () => {
     // Close the modal
     setShowChanceModal(false);
     setChanceModalData(null);
+    
+    console.log('✅ handleChanceCash completed');
+    console.log('📊 Expected after state changes:');
+    console.log('  - currentCapital should be:', newCapital);
+    console.log('  - consecutiveLosses should be: 0');
+    console.log('  - currentBetAmount should be:', baseBet);
   };
 
   const handleUndo = () => {
@@ -1566,16 +1576,16 @@ const MonopolyTracker = () => {
               )}
 
               {/* Pending Multiplier Indicator */}
-              {pendingMultiplier && (
+              {(chanceState.stackedMultiplier > 1 || chanceState.pendingCash > 0) && (
                 <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
                     <div className="text-2xl">🎯</div>
                     <div>
                       <div className="font-bold text-yellow-800">
-                        Pending Multiplier: {pendingMultiplier.multiplier}x
+                        {`Pending Multiplier: ${chanceState.stackedMultiplier}x`}
                       </div>
                       <div className="text-sm text-yellow-700">
-                        Waiting for next result. Win = ₱{pendingMultiplier.betAmount} × {pendingMultiplier.multiplier} = ₱{(pendingMultiplier.betAmount * pendingMultiplier.multiplier).toFixed(2)} if "1"
+                        {`Win = ₱${currentBetAmount} × ${chanceState.stackedMultiplier} = ₱${(currentBetAmount * chanceState.stackedMultiplier).toFixed(2)} if "1"`}
                       </div>
                     </div>
                   </div>
