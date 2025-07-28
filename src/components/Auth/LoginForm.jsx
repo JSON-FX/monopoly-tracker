@@ -78,7 +78,7 @@ const LoginForm = () => {
       if (result.success) {
         // Show success notification
         window.showNotification && window.showNotification(
-          `✅ Welcome back! Login successful.`, 
+          `Welcome back! Login successful.`, 
           'success', 
           3000
         );
@@ -90,7 +90,7 @@ const LoginForm = () => {
         
         // Show error notification
         window.showNotification && window.showNotification(
-          `❌ Login failed: ${result.error}`, 
+          `Login failed: ${result.error}`, 
           'error', 
           5000
         );
@@ -101,7 +101,7 @@ const LoginForm = () => {
       
       // Show error notification
       window.showNotification && window.showNotification(
-        `❌ Login error: ${errorMessage}`, 
+        `Login error: ${errorMessage}`, 
         'error', 
         5000
       );
