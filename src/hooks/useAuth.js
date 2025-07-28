@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('AuthProvider - Token found, verifying with backend...');
       const response = await get('/auth/me');
-      const userData = response.data.user;
+      const userData = response.user;
       
       console.log('AuthProvider - User verified:', userData);
       setUser(userData);
@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('AuthProvider - useEffect running, calling checkAuthStatus');
     checkAuthStatus();
-  }, []);
+  }, [checkAuthStatus]);
 
   /**
    * Login user
@@ -99,7 +99,22 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('AuthProvider - Login error:', error);
-      const errorMessage = error.message || 'Login failed. Please try again.';
+      
+      // Better error handling for common scenarios
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to server. Please check your connection and try again.';
+      } else if (error.message && error.message.includes('401')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message && error.message.includes('404')) {
+        errorMessage = 'Account not found. Please check your email or register for a new account.';
+      } else if (error.message && error.message.includes('429')) {
+        errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
@@ -138,7 +153,20 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('AuthProvider - Registration error:', error);
-      const errorMessage = error.message || 'Registration failed. Please try again.';
+      
+      // Better error handling for common scenarios
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to server. Please check your connection and try again.';
+      } else if (error.message && error.message.includes('409')) {
+        errorMessage = 'Email address is already registered. Please use a different email or try logging in.';
+      } else if (error.message && error.message.includes('400')) {
+        errorMessage = 'Invalid registration data. Please check your information and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
@@ -161,6 +189,13 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('refreshToken');
       setUser(null);
       setIsAuthenticated(false);
+      
+      // Show logout notification
+      window.showNotification && window.showNotification(
+        '👋 You have been logged out successfully', 
+        'info', 
+        3000
+      );
     }
   }, [post]);
 

@@ -22,7 +22,6 @@ const exportSingleSession = (session) => {
   } = session;
 
   // Create CSV content
-  const headers = ['Session Info', 'Value'];
   const sessionInfo = [
     ['Session Start', startTime ? new Date(startTime).toLocaleString() : 'N/A'],
     ['Session End', endTime ? new Date(endTime).toLocaleString() : 'Active Session'],

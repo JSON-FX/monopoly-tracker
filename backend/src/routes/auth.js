@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/AuthController');
 const validationMiddleware = require('../middleware/validationMiddleware');
+const AuthMiddleware = require('../middleware/authMiddleware');
 
 // Create controller instance
 const authController = new AuthController();
@@ -41,6 +42,17 @@ router.post('/refresh-token',
  * @access  Private (requires token in Authorization header)
  */
 router.get('/profile',
+  AuthMiddleware.verifyToken,
+  authController.getProfile
+);
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user (alias for /profile)
+ * @access  Private (requires token in Authorization header)
+ */
+router.get('/me',
+  AuthMiddleware.verifyToken,
   authController.getProfile
 );
 

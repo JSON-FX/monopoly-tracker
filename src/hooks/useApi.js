@@ -46,7 +46,7 @@ export const useApi = () => {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             const response = await axios.post(
-              `${process.env.REACT_APP_API_URL || 'http://monopolytracker.local:5001/api'}/auth/refresh-token`,
+              `${process.env.REACT_APP_API_URL || 'http://localhost:5001/api'}/auth/refresh-token`,
               { refreshToken }
             );
 

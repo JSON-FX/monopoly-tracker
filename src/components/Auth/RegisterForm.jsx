@@ -132,13 +132,35 @@ const RegisterForm = () => {
       });
       
       if (result.success) {
+        // Show success notification
+        window.showNotification && window.showNotification(
+          `🎉 Account created successfully! Welcome to MonopolyTracker!`, 
+          'success', 
+          4000
+        );
+        
         // Redirect to main app
         navigate('/', { replace: true });
       } else {
         setErrors({ submit: result.error });
+        
+        // Show error notification
+        window.showNotification && window.showNotification(
+          `❌ Registration failed: ${result.error}`, 
+          'error', 
+          5000
+        );
       }
     } catch (error) {
-      setErrors({ submit: 'An unexpected error occurred' });
+      const errorMessage = 'An unexpected error occurred';
+      setErrors({ submit: errorMessage });
+      
+      // Show error notification
+      window.showNotification && window.showNotification(
+        `❌ Registration error: ${errorMessage}`, 
+        'error', 
+        5000
+      );
     } finally {
       setIsSubmitting(false);
     }

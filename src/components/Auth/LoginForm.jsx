@@ -76,13 +76,35 @@ const LoginForm = () => {
       const result = await login(formData);
       
       if (result.success) {
+        // Show success notification
+        window.showNotification && window.showNotification(
+          `✅ Welcome back! Login successful.`, 
+          'success', 
+          3000
+        );
+        
         // Redirect to intended page or home
         navigate(from, { replace: true });
       } else {
         setErrors({ submit: result.error });
+        
+        // Show error notification
+        window.showNotification && window.showNotification(
+          `❌ Login failed: ${result.error}`, 
+          'error', 
+          5000
+        );
       }
     } catch (error) {
-      setErrors({ submit: 'An unexpected error occurred' });
+      const errorMessage = 'An unexpected error occurred';
+      setErrors({ submit: errorMessage });
+      
+      // Show error notification
+      window.showNotification && window.showNotification(
+        `❌ Login error: ${errorMessage}`, 
+        'error', 
+        5000
+      );
     } finally {
       setIsSubmitting(false);
     }

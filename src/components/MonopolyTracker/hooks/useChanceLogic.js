@@ -42,82 +42,103 @@ export const useChanceLogic = (sessionState, updateSessionState) => {
    * Implements Scenario 1 and Case B (Multiplier + Cash) logic
    */
   const handleCashPrize = useCallback((cashAmount) => {
-    const { currentCapital, startingCapital, baseBet } = sessionState;
+    // Use setState callback to access current chance state values
+    let result = { success: true, amount: 0 };
     
-    let profitLoss;
-    let newCapital;
-    
-    if (chanceState.isPending && chanceState.pendingMultiplier > 0) {
-      // Case B: Multiplier + Cash
-      // Formula: P/L = (Original Bet Amount * Multiplier Value) + Cash Prize Amount
-      const multiplierWin = chanceState.originalBetAmount * chanceState.pendingMultiplier;
-      profitLoss = multiplierWin + cashAmount;
-      newCapital = currentCapital + profitLoss;
+    setChanceState(currentChanceState => {
+      const { currentCapital, startingCapital, baseBet } = sessionState;
       
-      console.log(`Multiplier + Cash: (${chanceState.originalBetAmount} * ${chanceState.pendingMultiplier}) + ${cashAmount} = +${profitLoss}`);
-    } else {
-      // Scenario 1: Simple cash prize
-      // Formula: P/L = + (Cash Prize Amount)
-      profitLoss = cashAmount;
-      newCapital = currentCapital + cashAmount;
+      let profitLoss;
+      let newCapital;
       
-      console.log(`Cash Prize: +${cashAmount}`);
-    }
+      if (currentChanceState.isPending && currentChanceState.pendingMultiplier > 0) {
+        // Case B: Multiplier + Cash
+        // Formula: P/L = (Original Bet Amount * Multiplier Value) + Cash Prize Amount
+        const multiplierWin = currentChanceState.originalBetAmount * currentChanceState.pendingMultiplier;
+        profitLoss = multiplierWin + cashAmount;
+        newCapital = currentCapital + profitLoss;
+        
+        console.log(`Multiplier + Cash: (${currentChanceState.originalBetAmount} * ${currentChanceState.pendingMultiplier}) + ${cashAmount} = +${profitLoss}`);
+      } else {
+        // Scenario 1: Simple cash prize
+        // Formula: P/L = + (Cash Prize Amount)
+        profitLoss = cashAmount;
+        newCapital = currentCapital + cashAmount;
+        
+        console.log(`Cash Prize: +${cashAmount}`);
+      }
 
-    // Update session state
-    updateSessionState({
-      currentCapital: newCapital,
-      sessionProfit: newCapital - startingCapital,
-      consecutiveLosses: 0, // Reset martingale on any win
-      currentBetAmount: baseBet,
-      successfulBets: prev => prev + 1,
-      totalBets: prev => prev + 1,
-      lastBetAmount: chanceState.isPending ? chanceState.originalBetAmount : 0,
-      lastBetWon: true
+      // Update session state
+      updateSessionState({
+        currentCapital: newCapital,
+        sessionProfit: newCapital - startingCapital,
+        consecutiveLosses: 0, // Reset martingale on any win
+        currentBetAmount: baseBet,
+        successfulBets: prev => prev + 1,
+        totalBets: prev => prev + 1,
+        lastBetAmount: currentChanceState.isPending ? currentChanceState.originalBetAmount : 0,
+        lastBetWon: true
+      });
+
+      // Update result object
+      result.amount = profitLoss;
+
+      // Reset chance state
+      return {
+        isPending: false,
+        pendingMultiplier: 0,
+        originalBetAmount: 0,
+        isModalOpen: false
+      };
     });
 
-    // Reset chance state
-    setChanceState({
-      isPending: false,
-      pendingMultiplier: 0,
-      originalBetAmount: 0,
-      isModalOpen: false
-    });
-
-    return { success: true, amount: profitLoss };
-  }, [sessionState, chanceState, updateSessionState]);
+    return result;
+  }, [sessionState, updateSessionState]);
 
   /**
    * Handle multiplier selection
    * Implements Scenario 2 and Case A (Multiplier + Multiplier) logic
    */
   const handleMultiplier = useCallback((multiplierValue) => {
-    if (chanceState.isPending && chanceState.pendingMultiplier > 0) {
-      // Case A: Multiplier + Multiplier - ADD them together
-      const newMultiplier = chanceState.pendingMultiplier + multiplierValue;
+    let result = { success: true, multiplier: 0 };
+    
+    setChanceState(currentChanceState => {
+      let finalMultiplier;
       
-      setChanceState(prev => ({
-        ...prev,
-        pendingMultiplier: newMultiplier,
-        isPending: true,
-        isModalOpen: false
-      }));
-      
-      console.log(`Stacking Multipliers: ${chanceState.pendingMultiplier} + ${multiplierValue} = ${newMultiplier}x`);
-    } else {
-      // Scenario 2: Single multiplier - enter waiting state
-      setChanceState(prev => ({
-        ...prev,
-        pendingMultiplier: multiplierValue,
-        isPending: true,
-        isModalOpen: false
-      }));
-      
-      console.log(`Single Multiplier: ${multiplierValue}x pending`);
-    }
+      if (currentChanceState.isPending && currentChanceState.pendingMultiplier > 0) {
+        // Case A: Multiplier + Multiplier - ADD them together
+        const newMultiplier = currentChanceState.pendingMultiplier + multiplierValue;
+        finalMultiplier = newMultiplier;
+        
+        console.log(`Stacking Multipliers: ${currentChanceState.pendingMultiplier} + ${multiplierValue} = ${newMultiplier}x`);
+        
+        result.multiplier = finalMultiplier;
+        
+        return {
+          ...currentChanceState,
+          pendingMultiplier: newMultiplier,
+          isPending: true,
+          isModalOpen: false
+        };
+      } else {
+        // Scenario 2: Single multiplier - enter waiting state
+        finalMultiplier = multiplierValue;
+        
+        console.log(`Single Multiplier: ${multiplierValue}x pending`);
+        
+        result.multiplier = finalMultiplier;
+        
+        return {
+          ...currentChanceState,
+          pendingMultiplier: multiplierValue,
+          isPending: true,
+          isModalOpen: false
+        };
+      }
+    });
 
-    return { success: true, multiplier: chanceState.pendingMultiplier + multiplierValue };
-  }, [chanceState]);
+    return result;
+  }, []);
 
   /**
    * Process the next spin result when multiplier is pending

@@ -73,13 +73,19 @@ class AuthController {
    * @param {Object} res - Express response object
    */
   getProfile = ErrorMiddleware.asyncWrapper(async (req, res) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    const profile = await this.authService.getProfile(token);
+    // User is already attached by authMiddleware
+    const user = req.user;
 
     res.status(200).json({
       success: true,
-      user: profile
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        initials: user.initials,
+        email: user.email
+      }
     });
   });
 }
