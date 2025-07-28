@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { NotificationProvider } from './components/Common/Notification';
+import { FloatingCardProvider } from './contexts/FloatingCardContext';
 import Navigation from './components/Navigation/Navigation';
 import LiveTracker from './components/LiveTracker/LiveTracker';
 import History from './components/MonopolyTracker/components/History';
@@ -22,9 +23,10 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <Router>
-          <div className="App">
-            <Routes>
+        <FloatingCardProvider>
+          <Router>
+            <div className="App">
+              <Routes>
               {/* Public routes - redirect to main app if already authenticated */}
               <Route path="/login" element={
                 <AuthWrapper>
@@ -59,9 +61,10 @@ function App() {
               
               {/* Catch all route - redirect to tracker */}
               <Route path="*" element={<Navigate to="/tracker" replace />} />
-            </Routes>
-          </div>
-        </Router>
+              </Routes>
+            </div>
+          </Router>
+        </FloatingCardProvider>
       </NotificationProvider>
     </AuthProvider>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Undo2 } from 'lucide-react';
 
 /**
  * Component for the undo button
@@ -9,10 +10,9 @@ const UndoButton = ({ onUndo }) => {
   return (
     <button
       onClick={onUndo}
-      className="w-full h-12 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+      className="w-full h-8 bg-gray-700 hover:bg-gray-800 active:bg-gray-900 text-white font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center"
     >
-      <span className="text-lg">↶</span>
-      <span>UNDO LAST RESULT</span>
+      <Undo2 className="w-4 h-4" />
     </button>
   );
 };

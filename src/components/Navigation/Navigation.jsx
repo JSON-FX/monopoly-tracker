@@ -1,7 +1,8 @@
 import * as React from "react"
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { PlayIcon, HistoryIcon, LogOutIcon } from "lucide-react"
+import { PlayIcon, HistoryIcon, LogOutIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 import { useAuth } from '../../hooks/useAuth';
+import { useFloatingCard } from '../../contexts/FloatingCardContext';
 
 import {
   NavigationMenu,
@@ -14,6 +15,7 @@ import {
 const Navigation = () => {
   const location = useLocation();
   const { logout } = useAuth();
+  const { isVisible: isFloatingCardVisible, toggleVisibility } = useFloatingCard();
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -63,9 +65,23 @@ const Navigation = () => {
           </NavigationMenu>
         </div>
 
-        {/* Right Navigation Menu - Logout */}
+        {/* Right Navigation Menu - Controls & Logout */}
         <NavigationMenu>
           <NavigationMenuList>
+            {/* Only show toggle on tracker page */}
+            {location.pathname === '/tracker' && (
+              <NavigationMenuItem>
+                <NavigationMenuLink 
+                  asChild 
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <button onClick={toggleVisibility} className="flex items-center gap-2">
+                    {isFloatingCardVisible ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    {isFloatingCardVisible ? 'Hide Controls' : 'Show Controls'}
+                  </button>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            )}
             <NavigationMenuItem>
               <NavigationMenuLink 
                 asChild 

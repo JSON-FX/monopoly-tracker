@@ -7,61 +7,56 @@ import React from 'react';
  */
 const ResultButtons = ({ onResultClick }) => {
   return (
-    <div className="space-y-4">
-      {/* Main Result Buttons */}
-      <div className="grid grid-cols-4 gap-3">
+    <div className="space-y-2">
+      {/* First Row - Main Numbers */}
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => onResultClick('1')}
-          className="h-16 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white text-xl font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
         >
-          <div>1</div>
-          <div className="text-xs font-normal">40.74%</div>
+          1
         </button>
         <button
           onClick={() => onResultClick('2')}
-          className="h-16 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xl font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
         >
-          <div>2</div>
-          <div className="text-xs font-normal">27.78%</div>
+          2
         </button>
         <button
           onClick={() => onResultClick('5')}
-          className="h-16 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xl font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
         >
-          <div>5</div>
-          <div className="text-xs font-normal">12.96%</div>
+          5
         </button>
         <button
           onClick={() => onResultClick('10')}
-          className="h-16 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xl font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
         >
-          <div>10</div>
-          <div className="text-xs font-normal">7.41%</div>
+          10
         </button>
       </div>
       
-      {/* Bonus/Special Buttons */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Second Row - Special Results */}
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => onResultClick('chance')}
-          className="h-12 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-yellow-600 hover:bg-yellow-700 active:bg-yellow-800 text-white text-xs font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
         >
-          <div>CHANCE</div>
-          <div className="text-xs font-normal">3.70%</div>
+          CHANCE
         </button>
         <button
           onClick={() => onResultClick('2rolls')}
-          className="h-12 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white text-xs font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-1"
         >
-          <div>2 ROLLS</div>
-          <div className="text-xs font-normal">5.56%</div>
+          <span>2</span>
+          <span>🎲</span>
         </button>
         <button
           onClick={() => onResultClick('4rolls')}
-          className="h-12 bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          className="h-8 bg-yellow-600 hover:bg-yellow-700 active:bg-yellow-800 text-white text-xs font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-1"
         >
-          <div>4 ROLLS</div>
-          <div className="text-xs font-normal">1.85%</div>
+          <span>4</span>
+          <span>🎲</span>
         </button>
       </div>
     </div>
