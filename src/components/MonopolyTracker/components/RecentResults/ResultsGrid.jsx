@@ -51,17 +51,19 @@ const ResultsGrid = ({ results, resultTimestamps }) => {
   }
 
   return (
-    <div className="grid grid-cols-10 gap-2">
-      {/* Display current session results - newest first (left to right, top to bottom) */}
-      {[...results].reverse().slice(0, 20).map((result, index) => (
-        <div
-          key={index}
-          className={`px-3 py-2 rounded-lg text-center font-semibold ${getResultStyle(result)}`}
-          title={`Result: ${result.toUpperCase()}\nTime: ${resultTimestamps[results.length - 1 - index] ? new Date(resultTimestamps[results.length - 1 - index]).toLocaleString() : 'N/A'}`}
-        >
-          {getDisplayText(result)}
-        </div>
-      ))}
+    <div className="max-h-80 overflow-y-auto">
+      <div className="grid grid-cols-10 gap-2 pr-2">
+        {/* Display all session results - newest first (left to right, top to bottom) */}
+        {[...results].reverse().map((result, index) => (
+          <div
+            key={index}
+            className={`px-3 py-2 rounded-lg text-center font-semibold ${getResultStyle(result)}`}
+            title={`Result: ${result.toUpperCase()}\nTime: ${resultTimestamps[results.length - 1 - index] ? new Date(resultTimestamps[results.length - 1 - index]).toLocaleString() : 'N/A'}`}
+          >
+            {getDisplayText(result)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

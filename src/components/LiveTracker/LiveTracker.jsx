@@ -4,8 +4,10 @@ import { calculateMartingaleBet } from '../MonopolyTracker/utils/calculations';
 import { getBettingRecommendation, analyzeOnesPattern } from '../MonopolyTracker/utils/patterns';
 import ResultEntry from '../MonopolyTracker/components/ResultEntry';
 import RecentResults from '../MonopolyTracker/components/RecentResults';
+import HotZoneStatusCard from '../MonopolyTracker/components/HotZoneStatusCard';
 import ChanceModal from '../MonopolyTracker/components/ChanceModal';
 import { useChanceLogic } from '../MonopolyTracker/hooks/useChanceLogic';
+import { useHotZone } from '../../hooks/useHotZone';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
 
 const LiveTracker = () => {
@@ -41,6 +43,17 @@ const LiveTracker = () => {
     addResult: addResultToDb,
     loadSessionHistory
   } = useSessionData();
+
+  // Hot zone detection hook
+  const {
+    analyzeShiftStatus,
+    loading: hotZoneLoading,
+    error: hotZoneError,
+    isAnalysisActive,
+    getCurrentStatus,
+    getMinSpinsRequired,
+    clearError: clearHotZoneError
+  } = useHotZone();
 
   // Current session tracking
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -142,6 +155,15 @@ const LiveTracker = () => {
       setShowSessionModal(true);
     }
   }, [dataLoaded, sessionHistory.length, sessionActive, sessionStartTime]);
+
+  // Auto-analyze hot zones when results change
+  useEffect(() => {
+    if (results.length > 0) {
+      analyzeShiftStatus(results).catch(err => {
+        console.warn('Hot zone analysis failed:', err.message);
+      });
+    }
+  }, [results, analyzeShiftStatus]);
 
   // Get betting recommendation
   const recommendation = getBettingRecommendation(results, consecutiveLosses, baseBet);
@@ -611,14 +633,33 @@ const LiveTracker = () => {
           </div>
         )}
 
-        {/* Recent Results - Full Width */}
-        <div className="mb-6">
-          <RecentResults 
-            results={results} 
-            resultTimestamps={resultTimestamps}
-            onCopy={copyToClipboard}
-            onExport={exportToCSV}
-          />
+        {/* Recent Results & Hot Zone Detection - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Recent Results - Left Column */}
+          <div className="min-h-0">
+            <RecentResults 
+              results={results} 
+              resultTimestamps={resultTimestamps}
+              onCopy={copyToClipboard}
+              onExport={exportToCSV}
+            />
+          </div>
+
+          {/* Hot Zone Status Card - Right Column */}
+          <div className="min-h-0">
+            <HotZoneStatusCard
+              isActive={isAnalysisActive}
+              status={getCurrentStatus()?.status || 'Cold'}
+              dominantZone={getCurrentStatus()?.dominantZone || 'A'}
+              score={getCurrentStatus()?.score || 0}
+              trendDirection={getCurrentStatus()?.trendDirection || 'stable'}
+              totalSpins={getCurrentStatus()?.totalSpins || results.length}
+              requiredSpins={getMinSpinsRequired()}
+              loading={hotZoneLoading}
+              error={hotZoneError}
+              onRetry={clearHotZoneError}
+            />
+          </div>
         </div>
 
         {/* Pending Multiplier Indicator */}

@@ -11,7 +11,7 @@ import ResultsGrid from './ResultsGrid';
  */
 const RecentResults = ({ results, resultTimestamps, onCopy, onExport }) => {
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-lg shadow-lg p-6 h-full">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">
           Recent Results <span className="text-sm font-normal text-gray-500">(Latest → Oldest)</span>

@@ -36,6 +36,10 @@ class Server {
           console.log('   POST /api/auth/logout - Logout user');
           console.log('   GET  /api/auth/me - Get user profile');
           console.log('   POST /api/auth/refresh-token - Refresh token');
+          console.log('   POST /api/zones/shift-status - Analyze hot zone shifts');
+          console.log('   GET  /api/zones/shift-status - Get zone analysis (query)');
+          console.log('   GET  /api/zones/info - Get zone configuration');
+          console.log('   GET  /api/zones/test - Test endpoint (dev only)');
         }
       });
 
