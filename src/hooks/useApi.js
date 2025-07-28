@@ -22,12 +22,15 @@ export const useApi = () => {
   apiClient.interceptors.request.use(
     (config) => {
       const token = localStorage.getItem('accessToken');
+      
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+      return Promise.reject(error);
+    }
   );
 
   // Add response interceptor for token refresh
@@ -43,11 +46,11 @@ export const useApi = () => {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             const response = await axios.post(
-              `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/refresh-token`,
+              `${process.env.REACT_APP_API_URL || 'http://monopolytracker.local:5001/api'}/auth/refresh-token`,
               { refreshToken }
             );
 
-            const { accessToken } = response.data.data;
+            const { accessToken } = response.data.tokens;
             localStorage.setItem('accessToken', accessToken);
 
             // Retry original request with new token
@@ -68,10 +71,7 @@ export const useApi = () => {
   );
 
   /**
-   * Generic API call function
-   * @param {string} endpoint - API endpoint
-   * @param {Object} options - Request options
-   * @returns {Promise} API response
+   * Generic API call
    */
   const apiCall = useCallback(async (endpoint, options = {}) => {
     setIsLoading(true);
@@ -80,13 +80,16 @@ export const useApi = () => {
     try {
       const response = await apiClient({
         url: endpoint,
-        method: 'GET',
+        method: options.method || 'GET',
+        data: options.body ? JSON.parse(options.body) : undefined, // Parse the stringified body back to object
+        headers: options.headers,
+        params: options.params,
         ...options
       });
 
       return response.data;
     } catch (err) {
-      const errorMessage = err.response?.data?.error || err.message || 'An error occurred';
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'An error occurred';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

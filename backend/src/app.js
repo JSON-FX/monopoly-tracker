@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const sessionRoutes = require('./routes/sessions');
 const ErrorMiddleware = require('./middleware/errorMiddleware');
 const config = require('./config/environment');
 
@@ -90,6 +91,7 @@ class App {
     // API routes
     this.app.use('/api/auth', authRoutes);
     this.app.use('/api/users', userRoutes);
+    this.app.use('/api/sessions', sessionRoutes);
 
     // 404 handler for unknown routes
     this.app.use('*', ErrorMiddleware.handleNotFound);

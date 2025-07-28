@@ -72,25 +72,37 @@ export const AuthProvider = ({ children }) => {
    * @param {Object} credentials - Login credentials
    * @returns {Promise} Login result
    */
-  const login = useCallback(async (credentials) => {
+  const login = useCallback(async (loginCredentials) => {
     try {
-      const response = await post('/auth/login', credentials);
-      const { user: userData, accessToken, refreshToken } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-
-      // Update state
-      setUser(userData);
-      setIsAuthenticated(true);
-
-      return { success: true, user: userData };
+      console.log('AuthProvider - Logging in user');
+      setLoading(true);
+      
+      const apiResponse = await post('/auth/login', loginCredentials);
+      console.log('AuthProvider - Login response:', apiResponse);
+      
+      // Backend returns: { success, message, user, tokens }
+      if (apiResponse && apiResponse.success && apiResponse.user && apiResponse.tokens) {
+        const { user: loginUser, tokens } = apiResponse;
+        
+        // Store tokens
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
+        
+        console.log('AuthProvider - Login successful, setting user:', loginUser);
+        setUser(loginUser);
+        setIsAuthenticated(true);
+        
+        return { success: true, user: loginUser };
+      } else {
+        console.error('AuthProvider - Login failed: Invalid response structure');
+        return { success: false, error: 'Login failed. Please check your credentials.' };
+      }
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.message || 'Login failed' 
-      };
+      console.error('AuthProvider - Login error:', error);
+      const errorMessage = error.message || 'Login failed. Please try again.';
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   }, [post]);
 
@@ -99,26 +111,37 @@ export const AuthProvider = ({ children }) => {
    * @param {Object} userData - Registration data
    * @returns {Promise} Registration result
    */
-  const register = useCallback(async (userData) => {
+  const register = useCallback(async (registerData) => {
     try {
-      const response = await post('/auth/register', userData);
-      const { user: newUser, accessToken, refreshToken } = response.data;
-
-      // Store tokens
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-
-      // Update state
-      setUser(newUser);
-      setIsAuthenticated(true);
-      setLoading(false);
-
-      return { success: true, user: newUser };
+      console.log('AuthProvider - Registering user:', registerData);
+      setLoading(true);
+      
+      const apiResponse = await post('/auth/register', registerData);
+      console.log('AuthProvider - Registration response:', apiResponse);
+      
+      // Backend returns: { success, message, user, tokens }
+      if (apiResponse && apiResponse.success && apiResponse.user && apiResponse.tokens) {
+        const { user: newUser, tokens } = apiResponse;
+        
+        // Store tokens
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
+        
+        console.log('AuthProvider - Registration successful, setting user:', newUser);
+        setUser(newUser);
+        setIsAuthenticated(true);
+        
+        return { success: true, user: newUser };
+      } else {
+        console.error('AuthProvider - Registration failed: Invalid response structure');
+        return { success: false, error: 'Registration failed. Please try again.' };
+      }
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed' 
-      };
+      console.error('AuthProvider - Registration error:', error);
+      const errorMessage = error.message || 'Registration failed. Please try again.';
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   }, [post]);
 

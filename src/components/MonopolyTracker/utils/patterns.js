@@ -120,9 +120,10 @@ export const isGoodPattern = (results) => {
  * @param {Array} results - Array of game results
  * @param {number} consecutiveLosses - Number of consecutive losses
  * @param {number} baseBet - Base bet amount
+ * @param {number} currentBetAmount - Current bet amount (with martingale applied)
  * @returns {Object} Betting recommendation with shouldBet, confidence, reason, etc.
  */
-export const getBettingRecommendation = (results, consecutiveLosses, baseBet) => {
+export const getBettingRecommendation = (results, consecutiveLosses, baseBet, currentBetAmount = null) => {
   // Use the actual consecutive losses from betting decisions
   const actualConsecutiveLosses = consecutiveLosses;
   
@@ -142,13 +143,18 @@ export const getBettingRecommendation = (results, consecutiveLosses, baseBet) =>
   let shouldBet = false;
   let confidence = 50;
   let reason = '';
+  let action = '';
   let bettingMode = 'NONE';
+
+  // Use current bet amount if provided, otherwise calculate
+  const recommendedAmount = currentBetAmount || baseBet;
 
   // SAFETY LIMIT CHECK - ALWAYS FIRST
   if (actualConsecutiveLosses >= 7) {
     shouldBet = false;
     confidence = 99;
-    reason = `💀 SAFETY LIMIT: ${actualConsecutiveLosses} losses - Next bet ₱${baseBet * Math.pow(2, actualConsecutiveLosses)} - MAXIMUM RISK REACHED`;
+    action = '🛑 SKIP - SAFETY LIMIT';
+    reason = `💀 SAFETY LIMIT: ${actualConsecutiveLosses} losses - Next bet ₱${recommendedAmount} - MAXIMUM RISK REACHED`;
     bettingMode = 'SAFETY_LIMIT';
   }
   else {
@@ -156,11 +162,13 @@ export const getBettingRecommendation = (results, consecutiveLosses, baseBet) =>
     if (patternAnalysis.isGood) {
       shouldBet = true;
       confidence = 85;
+      action = '✅ BET NOW';
       reason = `✅ GOOD PATTERN: ${patternAnalysis.reason} - Safe to bet`;
       bettingMode = 'GOOD_PATTERN';
     } else {
       shouldBet = false;
       confidence = 85;
+      action = '⏸️ SKIP';
       reason = `❌ BAD PATTERN: ${patternAnalysis.reason} - Waiting for 1 or good pattern`;
       bettingMode = 'BAD_PATTERN';
     }
@@ -168,8 +176,10 @@ export const getBettingRecommendation = (results, consecutiveLosses, baseBet) =>
 
   return {
     shouldBet,
+    action,
     confidence: confidence.toFixed(0),
     reason,
+    amount: recommendedAmount,
     streakRisk,
     consecutiveLosses: actualConsecutiveLosses,
     expectedValue: expectedValue.toFixed(2),

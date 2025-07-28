@@ -18,8 +18,8 @@ import MultiplierOption from './MultiplierOption';
 const ChanceModal = ({ 
   isOpen, 
   onClose, 
-  onMultiplier, 
-  onCash,
+  onMultiplierSelect, 
+  onCashSelect,
   hasMultiplier = false,
   pendingMultiplier = 0,
   originalBet = 0
@@ -62,7 +62,7 @@ const ChanceModal = ({
         <div className="space-y-4">
           {/* Multiplier Option */}
           <MultiplierOption
-            onMultiplierSelect={onMultiplier}
+            onMultiplierSelect={onMultiplierSelect}
             hasMultiplier={hasMultiplier}
             pendingMultiplier={pendingMultiplier}
             originalBet={originalBet}
@@ -70,7 +70,7 @@ const ChanceModal = ({
           
           {/* Cash Prize Option */}
           <CashPrizeOption
-            onCashSelect={onCash}
+            onCashSelect={onCashSelect}
             hasMultiplier={hasMultiplier}
             pendingMultiplier={pendingMultiplier}
             originalBet={originalBet}

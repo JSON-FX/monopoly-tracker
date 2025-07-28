@@ -56,6 +56,11 @@ class DatabaseConfig {
    */
   async query(sql, params = []) {
     try {
+      // Initialize pool if it doesn't exist
+      if (!this.pool) {
+        await this.initialize();
+      }
+      
       const [rows] = await this.pool.execute(sql, params);
       return rows;
     } catch (error) {

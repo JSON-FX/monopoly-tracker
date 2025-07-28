@@ -4,46 +4,52 @@ const User = require('../models/User');
 const config = require('../config/environment');
 
 /**
- * Authentication Service - Handles authentication business logic
- * Follows Single Responsibility Principle - only handles authentication operations
+ * Authentication Service - Handles all authentication logic
+ * Follows Single Responsibility Principle
  */
 class AuthService {
   /**
    * Register a new user
-   * @param {Object} userData - Registration data
+   * @param {Object} userData - User registration data
    * @returns {Object} User data and tokens
    */
   async register(userData) {
     const { firstName, middleName, lastName, email, password } = userData;
 
-    // Check if email already exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      throw new Error('Email already registered');
+    // Validate input
+    if (!firstName || !lastName || !email || !password) {
+      throw new Error('All required fields must be provided');
     }
 
-    // Generate initials
-    const initials = this.generateInitials(firstName, middleName, lastName);
+    // Check if user already exists
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      throw new Error('User already exists with this email');
+    }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // Create user
+    // Create user (User.create will handle password hashing)
     const user = await User.create({
       firstName,
       middleName: middleName || null,
       lastName,
-      initials,
       email,
-      passwordHash
+      password  // Pass raw password, User.create will hash it
     });
 
     // Generate tokens
     const tokens = this.generateTokens(user);
 
     return {
-      user: user.getProfile(),
-      ...tokens
+      success: true,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        initials: user.initials,
+        email: user.email
+      },
+      tokens
     };
   }
 
@@ -66,15 +72,20 @@ class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    // Update last login
-    await User.updateLastLogin(user.id);
-
     // Generate tokens
     const tokens = this.generateTokens(user);
 
     return {
-      user: user.getProfile(),
-      ...tokens
+      success: true,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        initials: user.initials,
+        email: user.email
+      },
+      tokens
     };
   }
 
@@ -92,7 +103,12 @@ class AuthService {
         throw new Error('Invalid refresh token');
       }
 
-      return this.generateTokens(user);
+      const tokens = this.generateTokens(user);
+      
+      return {
+        success: true,
+        tokens
+      };
     } catch (error) {
       throw new Error('Invalid refresh token');
     }
@@ -117,7 +133,7 @@ class AuthService {
 
   /**
    * Generate JWT tokens
-   * @param {User} user - User instance
+   * @param {Object} user - User object with id, email, initials
    * @returns {Object} Access and refresh tokens
    */
   generateTokens(user) {
@@ -170,8 +186,15 @@ class AuthService {
       throw new Error('User not found');
     }
 
-    return user.getProfile();
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      middleName: user.middleName,
+      lastName: user.lastName,
+      initials: user.initials,
+      email: user.email
+    };
   }
 }
 
-module.exports = new AuthService(); 
+module.exports = AuthService; 
