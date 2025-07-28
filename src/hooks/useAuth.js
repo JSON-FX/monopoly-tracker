@@ -42,19 +42,37 @@ export const AuthProvider = ({ children }) => {
 
     try {
       console.log('AuthProvider - Token found, verifying with backend...');
-      const response = await get('/auth/me');
-      const userData = response.user;
       
-      console.log('AuthProvider - User verified:', userData);
-      setUser(userData);
-      setIsAuthenticated(true);
+      // Add a small delay to prevent rapid fire requests
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const response = await get('/auth/me');
+      
+      if (response && response.user) {
+        const userData = response.user;
+        console.log('AuthProvider - User verified:', userData);
+        setUser(userData);
+        setIsAuthenticated(true);
+      } else {
+        console.log('AuthProvider - Invalid response structure');
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('AuthProvider - Auth verification failed:', error);
-      // Clear invalid tokens
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      setUser(null);
-      setIsAuthenticated(false);
+      
+      // Only clear tokens if the error is actually an auth error (401, 403)
+      // Don't clear tokens for network errors or temporary server issues
+      if (error.message && (error.message.includes('401') || error.message.includes('403') || error.message.includes('Unauthorized'))) {
+        console.log('AuthProvider - Clearing invalid tokens');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        setUser(null);
+        setIsAuthenticated(false);
+      } else {
+        console.log('AuthProvider - Network/server error, keeping tokens for retry');
+        // For network errors, don't clear auth state immediately
+        // The user might just have a temporary connection issue
+      }
     } finally {
       console.log('AuthProvider - Setting loading to false');
       setLoading(false);

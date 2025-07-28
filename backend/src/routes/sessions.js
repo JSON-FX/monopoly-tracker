@@ -35,7 +35,12 @@ router.get('/', async (req, res) => {
     
     res.json({
       success: true,
-      sessions: sessions.slice(0, limit).map(s => s.toJSON())
+      sessions: sessions.slice(0, limit).map(s => ({
+        ...s.toJSON(),
+        results: s.results || null,
+        resultTimestamps: s.resultTimestamps || null,
+        chanceEvents: s.chanceEvents || null
+      }))
     });
   } catch (error) {
     console.error('Get sessions error:', error);

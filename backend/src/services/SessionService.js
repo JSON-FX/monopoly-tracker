@@ -2,7 +2,8 @@ const DatabaseConfig = require('../config/database');
 
 class SessionService {
   constructor() {
-    this.db = new DatabaseConfig();
+    // DatabaseConfig is already a singleton instance, no need to instantiate
+    this.db = DatabaseConfig;
   }
 
   /**

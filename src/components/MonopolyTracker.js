@@ -53,6 +53,10 @@ const MonopolyTracker = () => {
 
   // Current session tracking
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  
+  // Add state for history loading
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
 
   // Create session state object for chance logic hook
   const sessionState = {
@@ -118,12 +122,21 @@ const MonopolyTracker = () => {
   useEffect(() => {
     const loadHistory = async () => {
       try {
+        console.log('MonopolyTracker - Loading session history...');
+        setHistoryLoading(true);
+        setHistoryError(null);
+        
         const history = await loadSessionHistory();
+        console.log('MonopolyTracker - Session history loaded:', history);
         setSessionHistory(history || []);
         setDataLoaded(true);
       } catch (error) {
-        console.error('Failed to load session history:', error);
+        console.error('MonopolyTracker - Failed to load session history:', error);
+        setHistoryError(error.message || 'Failed to load session history');
+        setSessionHistory([]);
         setDataLoaded(true);
+      } finally {
+        setHistoryLoading(false);
       }
     };
     loadHistory();
@@ -452,6 +465,20 @@ const MonopolyTracker = () => {
     setResults(newResults);
     setResultTimestamps(newTimestamps);
   };
+
+  // Function to reload history when sessions are deleted
+  const handleLoadHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError(null);
+      const history = await loadSessionHistory();
+      setSessionHistory(history || []);
+    } catch (error) {
+      setHistoryError(error.message || 'Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [loadSessionHistory]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -819,6 +846,9 @@ const MonopolyTracker = () => {
           <History 
             sessionHistory={sessionHistory}
             onClose={() => setActiveTab('tracker')}
+            onHistoryUpdate={handleLoadHistory}
+            loading={historyLoading}
+            error={historyError}
           />
         )}
       </div>

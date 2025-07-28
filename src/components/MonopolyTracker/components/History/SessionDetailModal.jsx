@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React from 'react';
 import SpinHistoryGrid from './SpinHistoryGrid';
-import DeleteSessionButton from './DeleteSessionButton';
-import { exportUtils } from './exportUtils';
-import { calculateSessionDuration } from '../../utils/calculations';
+import { exportSessionToCSV, copySessionRawData } from './exportUtils';
 
-const SessionDetailModal = ({ session, onClose, onDelete }) => {
-  const [activeView, setActiveView] = useState('overview');
+/**
+ * Safe number formatting to prevent toFixed errors
+ */
+const safeToFixed = (value, decimals = 2) => {
+  const num = Number(value);
+  return isNaN(num) ? '0.00' : num.toFixed(decimals);
+};
 
+/**
+ * SessionDetailModal component - Shows detailed view of a single session
+ * Follows Single Responsibility Principle - only handles detailed session display
+ */
+const SessionDetailModal = ({ session, onClose }) => {
   if (!session) return null;
 
   const {
-    id,
     startTime,
     endTime,
     startingCapital,
@@ -20,201 +27,136 @@ const SessionDetailModal = ({ session, onClose, onDelete }) => {
     successfulBets,
     winRate,
     highestMartingale,
-    baseBet,
-    results = [],
-    resultTimestamps = []
+    duration,
+    results
   } = session;
 
-  const duration = calculateSessionDuration(startTime, endTime);
-  const actualProfit = profit || (finalCapital - startingCapital);
-  const actualWinRate = winRate || (totalBets > 0 ? (successfulBets / totalBets * 100).toFixed(1) : 0);
+  // Safe conversion for database values with null/undefined checks
+  const safeStartingCapital = Number(startingCapital) || 0;
+  const safeFinalCapital = Number(finalCapital) || 0;
+  const safeProfit = Number(profit) || 0;
+  const safeHighestMartingale = Number(highestMartingale) || 0;
+  const safeResults = results || [];
+  const safeTotalBets = totalBets || 0;
+  const safeSuccessfulBets = successfulBets || 0;
+  const safeWinRate = winRate || 0;
+  const safeDuration = duration || 'Unknown';
 
-  const handleExportSession = () => {
-    try {
-      exportUtils.exportSingleSession(session);
-      window.showNotification && window.showNotification(
-        'Session exported successfully', 
-        'success'
-      );
-    } catch (error) {
-      console.error('Export error:', error);
-      window.showNotification && window.showNotification(
-        'Failed to export session', 
-        'error'
-      );
-    }
+  const profitColor = safeProfit >= 0 ? 'text-green-600' : 'text-red-600';
+  const profitBgColor = safeProfit >= 0 ? 'bg-green-50' : 'bg-red-50';
+
+  const handleExportCSV = () => {
+    exportSessionToCSV(session);
   };
 
-  const handleDeleteSession = (deletedSessionId) => {
-    onDelete(deletedSessionId);
-    onClose(); // Close modal after deletion
+  const handleCopyRaw = () => {
+    copySessionRawData(session);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-3">
-            <span className="text-2xl">🎯</span>
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Session Details</h2>
-              <p className="text-sm text-gray-600">
-                {new Date(startTime).toLocaleString()}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {/* Export Button */}
-            <button
-              onClick={handleExportSession}
-              className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
-              title="Export this session to CSV"
-            >
-              <span>📤</span>
-              <span className="hidden sm:inline">Export</span>
-            </button>
-            
-            {/* Delete Button */}
-            <DeleteSessionButton
-              sessionId={id}
-              sessionData={session}
-              onDelete={handleDeleteSession}
-            />
-            
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center w-8 h-8 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-200 bg-white">
-          {[
-            { id: 'overview', label: '📊 Overview', desc: 'Session summary' },
-            { id: 'results', label: '🎲 Results', desc: 'Spin by spin details' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveView(tab.id)}
-              className={`flex-1 p-4 text-left transition-colors ${
-                activeView === tab.id
-                  ? 'border-b-2 border-blue-500 bg-blue-50 text-blue-700'
-                  : 'hover:bg-gray-50 text-gray-600'
-              }`}
-            >
-              <div className="font-semibold">{tab.label}</div>
-              <div className="text-xs opacity-75">{tab.desc}</div>
-            </button>
-          ))}
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-bold text-gray-800">📊 Session Details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+          >
+            ×
+          </button>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-          {activeView === 'overview' && (
-            <div className="p-6 space-y-6">
-              {/* Session Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Duration */}
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <div className="text-sm text-blue-600 font-medium">Duration</div>
-                  <div className="text-xl font-bold text-blue-800">{duration}</div>
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Session Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Time & Duration */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-800 mb-3">⏰ Session Time</h3>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-gray-600">Started:</span>{' '}
+                  <span className="font-medium">
+                    {new Date(startTime).toLocaleString()}
+                  </span>
                 </div>
-
-                {/* Total Spins */}
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                  <div className="text-sm text-purple-600 font-medium">Total Spins</div>
-                  <div className="text-xl font-bold text-purple-800">{results.length}</div>
+                <div>
+                  <span className="text-gray-600">Ended:</span>{' '}
+                  <span className="font-medium">
+                    {new Date(endTime).toLocaleString()}
+                  </span>
                 </div>
-
-                {/* Win Rate */}
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="text-sm text-green-600 font-medium">Win Rate</div>
-                  <div className="text-xl font-bold text-green-800">{actualWinRate}%</div>
-                </div>
-
-                {/* Highest Bet */}
-                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                  <div className="text-sm text-orange-600 font-medium">Highest Bet</div>
-                  <div className="text-xl font-bold text-orange-800">
-                    ₱{(highestMartingale || baseBet).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Financial Summary */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">💰 Financial Summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <div className="text-sm text-gray-600">Starting Capital</div>
-                    <div className="text-2xl font-bold text-gray-800">₱{startingCapital.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Final Capital</div>
-                    <div className="text-2xl font-bold text-gray-800">₱{finalCapital.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Session P/L</div>
-                    <div className={`text-2xl font-bold ${
-                      actualProfit >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {actualProfit >= 0 ? '+' : ''}₱{actualProfit.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Betting Summary */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">🎲 Betting Summary</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-600">Base Bet</div>
-                    <div className="text-xl font-bold text-gray-800">₱{baseBet.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Total Bets</div>
-                    <div className="text-xl font-bold text-gray-800">{totalBets || 0}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Successful Bets</div>
-                    <div className="text-xl font-bold text-green-600">{successfulBets || 0}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">Failed Bets</div>
-                    <div className="text-xl font-bold text-red-600">
-                      {(totalBets || 0) - (successfulBets || 0)}
-                    </div>
-                  </div>
+                <div>
+                  <span className="text-gray-600">Duration:</span>{' '}
+                  <span className="font-medium">{safeDuration}</span>
                 </div>
               </div>
             </div>
-          )}
 
-          {activeView === 'results' && (
-            <div className="p-6">
-              {results && results.length > 0 ? (
-                <SpinHistoryGrid 
-                  results={results}
-                  timestamps={resultTimestamps}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">🎲</div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No Results Found</h3>
-                  <p className="text-gray-500">
-                    This session doesn't have any recorded spin results.
-                  </p>
+            {/* Financial Summary */}
+            <div className={`rounded-lg p-4 ${profitBgColor}`}>
+              <h3 className="font-semibold text-gray-800 mb-3">💰 Financial Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-gray-600">Starting Capital:</span>{' '}
+                  <span className="font-medium">₱{safeToFixed(safeStartingCapital)}</span>
                 </div>
-              )}
+                <div>
+                  <span className="text-gray-600">Final Capital:</span>{' '}
+                  <span className="font-medium">₱{safeToFixed(safeFinalCapital)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Profit/Loss:</span>{' '}
+                  <span className={`font-bold ${profitColor}`}>
+                    ₱{safeToFixed(safeProfit)}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-blue-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-blue-800">{safeTotalBets}</div>
+              <div className="text-sm text-blue-600">Total Spins</div>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-800">{safeSuccessfulBets}</div>
+              <div className="text-sm text-green-600">Wins</div>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-purple-800">{safeWinRate}%</div>
+              <div className="text-sm text-purple-600">Win Rate</div>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-orange-800">₱{safeHighestMartingale}</div>
+              <div className="text-sm text-orange-600">Highest Bet</div>
+            </div>
+          </div>
+
+          {/* Export Actions */}
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              📊 Export CSV
+            </button>
+            <button
+              onClick={handleCopyRaw}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              📋 Copy Raw Data
+            </button>
+          </div>
+
+          {/* Spin History */}
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-3">🎰 Spin History</h3>
+            <SpinHistoryGrid results={safeResults} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const AuthMiddleware = require('../middleware/authMiddleware');
 const SessionService = require('../services/SessionService');
 const { errorHandler } = require('../middleware/errorMiddleware');
 
+// Create SessionService instance
+const sessionService = new SessionService();
+
 // Apply authentication middleware to all routes
-router.use(authMiddleware);
+router.use(AuthMiddleware.verifyToken);
 
 /**
  * @route   DELETE /api/users/history
@@ -16,7 +19,7 @@ router.delete('/history', async (req, res) => {
   try {
     const userId = req.user.id;
     
-    await SessionService.deleteUserHistory(userId);
+    await sessionService.deleteUserHistory(userId);
     
     res.json({
       success: true,
@@ -49,7 +52,7 @@ router.delete('/sessions/:id', async (req, res) => {
       });
     }
     
-    await SessionService.deleteSession(userId, sessionId);
+    await sessionService.deleteSession(userId, sessionId);
     
     res.json({
       success: true,

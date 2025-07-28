@@ -1,9 +1,20 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 
+// Dynamic API URL detection based on current domain
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    const currentDomain = window.location.hostname;
+    if (currentDomain === 'monopolytracker.local') {
+      return 'http://monopolytracker.local:5001/api';
+    }
+  }
+  return process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+};
+
 // Create axios instance with base configuration
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
+  baseURL: getApiUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -39,31 +50,43 @@ export const useApi = () => {
     async (error) => {
       const originalRequest = error.config;
 
+      // Check if this is actually an authentication error (401/403) or just a network issue
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
 
         try {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
+            console.log('API - Attempting token refresh...');
             const response = await axios.post(
-              `${process.env.REACT_APP_API_URL || 'http://localhost:5001/api'}/auth/refresh-token`,
+              `${getApiUrl()}/auth/refresh-token`,
               { refreshToken }
             );
 
             const { accessToken } = response.data.tokens;
             localStorage.setItem('accessToken', accessToken);
+            console.log('API - Token refreshed successfully');
 
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return apiClient(originalRequest);
           }
         } catch (refreshError) {
-          // Refresh failed, redirect to login
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
+          console.error('API - Token refresh failed:', refreshError);
+          // Only redirect to login if token refresh actually failed
+          if (refreshError.response?.status === 401 || refreshError.response?.status === 403) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/login';
+          }
           return Promise.reject(refreshError);
         }
+      }
+
+      // For network errors, don't redirect to login immediately
+      if (!error.response) {
+        console.error('API - Network error:', error.message);
+        return Promise.reject(new Error('Network Error: ' + error.message));
       }
 
       return Promise.reject(error);

@@ -211,12 +211,51 @@ export const useSessionData = () => {
   const loadSessionHistory = useCallback(async () => {
     try {
       const sessions = await getUserSessions(true, 50); // Include results, get last 50
-      return sessions.filter(session => !session.isActive); // Only completed sessions
+      
+      // Filter and format sessions for History component
+      const completedSessions = sessions
+        .filter(session => !session.isActive) // Only completed sessions
+        .map(session => {
+          // Calculate duration if missing
+          const duration = session.duration || calculateSessionDuration(session.startTime, session.endTime);
+          
+          // Ensure all required fields are present
+          return {
+            ...session,
+            duration,
+            results: session.results || [], // Ensure results is always an array
+            profit: session.profit || (session.finalCapital - session.startingCapital),
+            totalBets: session.totalBets || session.results?.length || 0,
+            winRate: session.winRate || 0,
+            successfulBets: session.successfulBets || 0,
+            highestMartingale: session.highestMartingale || session.baseBet || 0
+          };
+        });
+      
+      return completedSessions;
     } catch (err) {
       console.error('Failed to load session history:', err);
       return [];
     }
   }, [getUserSessions]);
+
+  // Helper function to calculate session duration
+  const calculateSessionDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return 'Unknown';
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const durationMs = end - start;
+    
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
 
   /**
    * Clear all user history (already implemented in useApi via users routes)
