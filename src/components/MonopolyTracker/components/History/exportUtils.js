@@ -190,6 +190,43 @@ export const exportSessionToCSV = (session) => {
 };
 
 /**
+ * Fallback method to copy text to clipboard using legacy approach
+ * @param {string} text - Text to copy
+ * @returns {boolean} Success status
+ */
+const fallbackCopyToClipboard = (text) => {
+  try {
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Make it invisible
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    textArea.style.opacity = '0';
+    textArea.style.pointerEvents = 'none';
+    
+    // Add to DOM
+    document.body.appendChild(textArea);
+    
+    // Select and copy
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    
+    // Clean up
+    document.body.removeChild(textArea);
+    
+    return successful;
+  } catch (error) {
+    console.error('Fallback copy failed:', error);
+    return false;
+  }
+};
+
+/**
  * Copy session data as raw text to clipboard
  * @param {Object} session - Session object to copy
  */
@@ -286,9 +323,40 @@ ${generateResultsBreakdown(safeResults)}
 Raw Results Array: [${safeResults.join(', ')}]
     `.trim();
 
-    // Copy to clipboard
-    await navigator.clipboard.writeText(rawData);
-    showNotification('Session data copied to clipboard!', 'success');
+    // Try modern clipboard API first
+    let copySuccessful = false;
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(rawData);
+        copySuccessful = true;
+      } catch (clipboardError) {
+        console.warn('Modern clipboard API failed, trying fallback:', clipboardError);
+        copySuccessful = false;
+      }
+    }
+    
+    // If modern API failed or not available, use fallback
+    if (!copySuccessful) {
+      copySuccessful = fallbackCopyToClipboard(rawData);
+    }
+    
+    if (copySuccessful) {
+      showNotification('Session data copied to clipboard!', 'success');
+    } else {
+      // If both methods fail, show the data in a modal or alert
+      console.log('Clipboard copy failed, showing data:', rawData);
+      showNotification('Could not copy to clipboard. Data logged to console.', 'error');
+      
+      // As a last resort, try to show data in an alert or create a modal
+      if (window.confirm('Could not copy to clipboard. Would you like to see the data in a new window?')) {
+        const newWindow = window.open('', '_blank');
+        if (newWindow) {
+          newWindow.document.write(`<pre style="font-family: monospace; padding: 20px; white-space: pre-wrap;">${rawData}</pre>`);
+          newWindow.document.title = 'Session Data';
+        }
+      }
+    }
   } catch (error) {
     console.error('Error copying to clipboard:', error);
     showNotification('Failed to copy data to clipboard', 'error');
