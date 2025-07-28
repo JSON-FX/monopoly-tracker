@@ -755,6 +755,7 @@ const MonopolyTracker = () => {
             <History 
               sessionHistory={sessionHistory}
               onClose={() => setActiveTab('tracker')}
+              onSessionHistoryUpdate={setSessionHistory}
             />
           )}
           
