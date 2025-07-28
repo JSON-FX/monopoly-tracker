@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MonopolyTracker Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-blue-600 mb-4">🎯 MonopolyTracker</h1>
+            <p class="text-gray-600 mb-8">Test page - if you see this, basic serving works!</p>
+            <div class="space-y-4">
+                <button onclick="testBackend()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    Test Backend Connection
+                </button>
+                <div id="result" class="mt-4 p-4 bg-white rounded-lg shadow"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function testBackend() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = 'Testing backend...';
+                const response = await fetch('http://monopolytracker.local:5001/health');
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <div class="text-green-600">✅ Backend Connected!</div>
+                    <pre class="text-sm mt-2">${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="text-red-600">❌ Backend Error:</div>
+                    <div class="text-sm mt-2">${error.message}</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

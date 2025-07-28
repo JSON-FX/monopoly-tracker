@@ -1,11 +1,51 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './hooks/useAuth';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AuthWrapper from './components/Auth/AuthWrapper';
+import LoginForm from './components/Auth/LoginForm';
+import RegisterForm from './components/Auth/RegisterForm';
 import MonopolyTracker from './components/MonopolyTracker';
+import './index.css';
 
+/**
+ * Main App Component - Handles routing and authentication
+ * Includes authentication provider and route protection
+ */
 function App() {
+  console.log('App component rendering...');
+  
   return (
-    <div className="App">
-      <MonopolyTracker />
-    </div>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            {/* Public routes (authentication pages) */}
+            <Route path="/login" element={
+              <AuthWrapper>
+                <LoginForm />
+              </AuthWrapper>
+            } />
+            
+            <Route path="/register" element={
+              <AuthWrapper>
+                <RegisterForm />
+              </AuthWrapper>
+            } />
+            
+            {/* Protected routes (main application) */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <MonopolyTracker />
+              </ProtectedRoute>
+            } />
+            
+            {/* Catch all route - redirect to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
