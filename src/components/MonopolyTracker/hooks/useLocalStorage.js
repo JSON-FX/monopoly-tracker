@@ -26,7 +26,6 @@ export const useLocalStorage = (data, dataLoaded) => {
         sessionEndTime: data.sessionEndTime,
         sessionHistory: data.sessionHistory.slice(-5), // Always keep only last 5
         highestMartingale: data.highestMartingale,
-        pendingMultiplier: data.pendingMultiplier,
         lastBetAmount: data.lastBetAmount,
         lastBetWon: data.lastBetWon
       };
@@ -49,7 +48,6 @@ export const useLocalStorage = (data, dataLoaded) => {
     data.sessionEndTime,
     data.sessionHistory,
     data.highestMartingale,
-    data.pendingMultiplier,
     data.lastBetAmount,
     data.lastBetWon
   ]);

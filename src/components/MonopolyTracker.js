@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocalStorage } from './MonopolyTracker/hooks/useLocalStorage';
 import { useSessionManagement } from './MonopolyTracker/hooks/useSessionManagement';
 import { useBettingLogic } from './MonopolyTracker/hooks/useBettingLogic';
+import { useChanceLogic } from './MonopolyTracker/hooks/useChanceLogic';
 
 // Import utility functions
 import { calculateMartingaleBet, calculateSessionDuration } from './MonopolyTracker/utils/calculations';
@@ -37,11 +38,9 @@ const MonopolyTracker = () => {
   const [sessionHistory, setSessionHistory] = useState([]);
   const [highestMartingale, setHighestMartingale] = useState(0);
   
-  // Simplified chance and betting state
-  const [pendingMultiplier, setPendingMultiplier] = useState(1);
+  // Simplified betting state
   const [lastBetAmount, setLastBetAmount] = useState(0);
   const [lastBetWon, setLastBetWon] = useState(false);
-  const [showChanceModal, setShowChanceModal] = useState(false);
 
   // Helper function to update multiple state values
   const updateState = useCallback((updates) => {
@@ -106,9 +105,6 @@ const MonopolyTracker = () => {
           case 'highestMartingale':
             setHighestMartingale(value);
             break;
-          case 'pendingMultiplier':
-            setPendingMultiplier(value);
-            break;
           case 'lastBetAmount':
             setLastBetAmount(value);
             break;
@@ -127,15 +123,28 @@ const MonopolyTracker = () => {
     results, resultTimestamps, totalBets, successfulBets, sessionActive,
     startingCapital, currentCapital, baseBet, currentBetAmount, consecutiveLosses,
     sessionProfit, sessionStartTime, sessionEndTime, sessionHistory, highestMartingale,
-    pendingMultiplier, lastBetAmount, lastBetWon
+    lastBetAmount, lastBetWon
   };
 
   // Initialize hooks
   const { loadData, clearData } = useLocalStorage(allState, dataLoaded);
   const { archiveCurrentSession, initializeSession, clearCurrentSession, resetHistory } = 
     useSessionManagement(allState, updateState);
-  const { handleSessionBet, addResult, handleChanceMultiplier, handleChanceCash, handleUndo } = 
+  const { handleSessionBet, addResult, handleUndo } = 
     useBettingLogic(allState, updateState);
+  
+  // Initialize chance logic hook
+  const {
+    initializeChance,
+    handleCashPrize,
+    handleMultiplier,
+    processNextSpin,
+    closeModal,
+    isPending: chanceIsPending,
+    isModalOpen: chanceModalOpen,
+    pendingMultiplier: chancePendingMultiplier,
+    originalBetAmount: chanceOriginalBet
+  } = useChanceLogic(allState, updateState);
 
   // Load data on mount
   useEffect(() => {
@@ -165,37 +174,39 @@ const MonopolyTracker = () => {
   const recommendation = getBettingRecommendation(results, consecutiveLosses, baseBet);
   const analysis = analyzeOnesPattern(results);
 
-  // Handle result addition with chance logic
+  // Handle result addition with new chance logic
   const handleAddResult = useCallback((result) => {
     if (result === 'chance') {
       const shouldBet = sessionActive && recommendation.shouldBet && currentBetAmount <= currentCapital;
       
       if (shouldBet) {
-        setShowChanceModal(true);
+        // Initialize chance with current bet amount (pre-condition: user must be in "Bet" status)
+        initializeChance(currentBetAmount);
       } else {
+        // No bet placed, just add result
         addResult(result);
       }
       return;
     }
     
-    // Check for pending multiplier
-    if (pendingMultiplier > 1 && sessionActive) {
-      const shouldBet = sessionActive && currentBetAmount <= currentCapital;
-      const won = result === '1';
-      
-      if (shouldBet) {
-        handleSessionBet(currentBetAmount, won, true); // true = is multiplier bet
-      }
-    } else {
-      // Regular processing
-      if (sessionActive && recommendation.shouldBet && currentBetAmount <= currentCapital) {
-        const won = result === '1';
-        handleSessionBet(currentBetAmount, won, false);
+    // Check if we need to process pending multiplier
+    if (chanceIsPending) {
+      const spinResult = processNextSpin(result);
+      if (spinResult.processed) {
+        // Multiplier was processed, add the result
+        addResult(result);
+        return;
       }
     }
     
+    // Regular processing for non-chance results
+    if (sessionActive && recommendation.shouldBet && currentBetAmount <= currentCapital) {
+      const won = result === '1';
+      handleSessionBet(currentBetAmount, won, false);
+    }
+    
     addResult(result);
-  }, [sessionActive, recommendation, currentBetAmount, currentCapital, pendingMultiplier, handleSessionBet, addResult]);
+  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, handleSessionBet, addResult]);
 
   // Export functions
   const exportToCSV = useCallback(() => {
@@ -262,18 +273,22 @@ const MonopolyTracker = () => {
   }, [handleUndo]);
 
   // Chance modal handlers
-  const handleChanceModalMultiplier = () => {
-    handleChanceMultiplier();
-    setShowChanceModal(false);
+  const handleChanceModalMultiplier = (multiplier) => {
+    const result = handleMultiplier(multiplier);
+    if (result.success) {
+      addResult('chance');
+    }
   };
 
   const handleChanceModalCash = (amount) => {
-    handleChanceCash(amount);
-    setShowChanceModal(false);
+    const result = handleCashPrize(amount);
+    if (result.success) {
+      addResult('chance');
+    }
   };
 
   const handleChanceModalClose = () => {
-    setShowChanceModal(false);
+    closeModal();
     addResult('chance'); // Add chance result even if no selection is made
   };
 
@@ -519,16 +534,19 @@ const MonopolyTracker = () => {
               )}
 
               {/* Pending Multiplier Indicator */}
-              {pendingMultiplier > 1 && (
+              {chanceIsPending && (
                 <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
                     <div className="text-2xl">🎯</div>
                     <div>
                       <div className="font-bold text-yellow-800">
-                        {`Pending Multiplier: ${pendingMultiplier}x`}
+                        {`Pending Multiplier: ${chancePendingMultiplier}x`}
                       </div>
                       <div className="text-sm text-yellow-700">
-                        {`Win = ₱${currentBetAmount} × ${pendingMultiplier} = ₱${(currentBetAmount * pendingMultiplier).toFixed(2)} if "1"`}
+                        {`Win = ₱${chanceOriginalBet} × ${chancePendingMultiplier} = ₱${(chanceOriginalBet * chancePendingMultiplier).toFixed(2)} if "1"`}
+                      </div>
+                      <div className="text-xs text-yellow-600 mt-1">
+                        Original bet: ₱{chanceOriginalBet} | Next spin determines outcome
                       </div>
                     </div>
                   </div>
@@ -661,10 +679,13 @@ const MonopolyTracker = () => {
       
       {/* Chance Modal */}
       <ChanceModal
-        isOpen={showChanceModal}
+        isOpen={chanceModalOpen}
         onClose={handleChanceModalClose}
         onMultiplier={handleChanceModalMultiplier}
         onCash={handleChanceModalCash}
+        hasMultiplier={chanceIsPending}
+        pendingMultiplier={chancePendingMultiplier}
+        originalBet={chanceOriginalBet}
       />
     </div>
   );

@@ -1,91 +1,99 @@
-import React, { useState } from 'react';
+import React from 'react';
+import CashPrizeOption from './CashPrizeOption';
+import MultiplierOption from './MultiplierOption';
 
 /**
- * Simplified Chance Modal component
+ * Enhanced Chance Modal component with proper stacking logic
+ * Implements the complete Chance segment specification
+ * 
  * @param {boolean} isOpen - Whether the modal is open
  * @param {Function} onClose - Function called when modal is closed
  * @param {Function} onMultiplier - Function called when multiplier is selected
  * @param {Function} onCash - Function called when cash is selected with amount
+ * @param {boolean} hasMultiplier - Whether there's a pending multiplier
+ * @param {number} pendingMultiplier - Current pending multiplier value
+ * @param {number} originalBet - Original bet amount for calculations
  * @returns {JSX.Element} ChanceModal component
  */
-const ChanceModal = ({ isOpen, onClose, onMultiplier, onCash }) => {
-  const [cashAmount, setCashAmount] = useState('');
-
+const ChanceModal = ({ 
+  isOpen, 
+  onClose, 
+  onMultiplier, 
+  onCash,
+  hasMultiplier = false,
+  pendingMultiplier = 0,
+  originalBet = 0
+}) => {
   if (!isOpen) return null;
 
-  const handleCashSubmit = () => {
-    const amount = parseFloat(cashAmount) || 0;
-    if (amount <= 0) {
-      alert('Please enter a valid cash amount greater than 0');
-      return;
+  const getModalTitle = () => {
+    if (hasMultiplier) {
+      return `🎲 Chance Segment (${pendingMultiplier}x Pending)`;
     }
-    onCash(amount);
-    setCashAmount('');
+    return '🎲 Chance Segment';
+  };
+
+  const getModalDescription = () => {
+    if (hasMultiplier) {
+      return `You have a ${pendingMultiplier}x multiplier pending. Choose how to handle this new Chance:`;
+    }
+    return 'Choose your Chance outcome:';
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-purple-600 mb-2">
-            🎲 Chance Segment
+            {getModalTitle()}
           </h2>
           <p className="text-gray-600">
-            Choose your outcome:
+            {getModalDescription()}
           </p>
+          {hasMultiplier && (
+            <div className="mt-2 p-2 bg-purple-100 rounded-lg">
+              <div className="text-sm text-purple-700">
+                Original bet: ₱{originalBet} | Pending: {pendingMultiplier}x
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="space-y-4">
-          {/* Fixed 2x Multiplier Option */}
-          <button
-            onClick={onMultiplier}
-            className="w-full border-2 border-yellow-500 rounded-lg p-4 bg-yellow-50 hover:bg-yellow-100 transition-colors"
-          >
-            <div className="text-lg font-bold text-yellow-700 mb-2">
-              🎯 2x Multiplier
-            </div>
-            <div className="text-sm text-yellow-600">
-              Win = bet × 2 if next result is "1"
-            </div>
-          </button>
+          {/* Multiplier Option */}
+          <MultiplierOption
+            onMultiplierSelect={onMultiplier}
+            hasMultiplier={hasMultiplier}
+            pendingMultiplier={pendingMultiplier}
+            originalBet={originalBet}
+          />
           
-          {/* Cash Option */}
-          <div className="border-2 border-green-500 rounded-lg p-4 bg-green-50">
-            <div className="text-lg font-bold text-green-700 mb-3">
-              💰 Cash Out
-            </div>
-            <div className="text-sm text-green-600 mb-3">
-              Add cash to your capital and reset martingale
-            </div>
-            
-            <div className="space-y-3">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Enter cash amount (₱)"
-              />
-              
-              <button
-                onClick={handleCashSubmit}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-              >
-                Confirm Cash Out
-              </button>
-            </div>
-          </div>
+          {/* Cash Prize Option */}
+          <CashPrizeOption
+            onCashSelect={onCash}
+            hasMultiplier={hasMultiplier}
+            pendingMultiplier={pendingMultiplier}
+            originalBet={originalBet}
+          />
         </div>
         
-        <div className="mt-4 text-center">
+        <div className="mt-6 text-center">
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            className="text-gray-500 hover:text-gray-700 text-sm underline"
           >
-            Cancel
+            Cancel (Skip Chance)
           </button>
+        </div>
+        
+        {/* Legend/Help */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
+          <div className="font-semibold mb-1">Quick Reference:</div>
+          <div>• Multiplier: Wait for next spin, win = bet × multiplier if "1"</div>
+          <div>• Cash: Immediate win</div>
+          {hasMultiplier && (
+            <div>• Stacking: Multipliers add together, Cash = (bet × multiplier) + cash</div>
+          )}
         </div>
       </div>
     </div>
