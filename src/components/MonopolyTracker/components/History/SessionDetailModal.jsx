@@ -1,7 +1,14 @@
 import React from 'react';
 import SpinHistoryGrid from './SpinHistoryGrid';
 import { exportSessionToCSV, copySessionRawData } from './exportUtils';
-import { calculateSessionDuration } from '../../utils/calculations';
+
+/**
+ * Safe number formatting to prevent toFixed errors
+ */
+const safeToFixed = (value, decimals = 2) => {
+  const num = Number(value);
+  return isNaN(num) ? '0.00' : num.toFixed(decimals);
+};
 
 /**
  * SessionDetailModal component - Shows detailed view of a single session
@@ -21,11 +28,26 @@ const SessionDetailModal = ({ session, onClose }) => {
     winRate,
     highestMartingale,
     duration,
-    results
+    results,
+    chanceEvents,
+    resultTimestamps
   } = session;
 
-  const profitColor = profit >= 0 ? 'text-green-600' : 'text-red-600';
-  const profitBgColor = profit >= 0 ? 'bg-green-50' : 'bg-red-50';
+  // Safe conversion for database values with null/undefined checks
+  const safeStartingCapital = Number(startingCapital) || 0;
+  const safeFinalCapital = Number(finalCapital) || 0;
+  const safeProfit = Number(profit) || 0;
+  const safeHighestMartingale = Number(highestMartingale) || 0;
+  const safeResults = results || [];
+  const safeChanceEvents = chanceEvents || [];
+  const safeResultTimestamps = resultTimestamps || [];
+  const safeTotalBets = totalBets || 0;
+  const safeSuccessfulBets = successfulBets || 0;
+  const safeWinRate = winRate || 0;
+  const safeDuration = duration || 'Unknown';
+
+  const profitColor = safeProfit >= 0 ? 'text-green-600' : 'text-red-600';
+  const profitBgColor = safeProfit >= 0 ? 'bg-green-50' : 'bg-red-50';
 
   const handleExportCSV = () => {
     exportSessionToCSV(session);
@@ -71,7 +93,7 @@ const SessionDetailModal = ({ session, onClose }) => {
                 </div>
                 <div>
                   <span className="text-gray-600">Duration:</span>{' '}
-                  <span className="font-medium">{duration}</span>
+                  <span className="font-medium">{safeDuration}</span>
                 </div>
               </div>
             </div>
@@ -82,16 +104,16 @@ const SessionDetailModal = ({ session, onClose }) => {
               <div className="space-y-2 text-sm">
                 <div>
                   <span className="text-gray-600">Starting Capital:</span>{' '}
-                  <span className="font-medium">₱{startingCapital.toFixed(2)}</span>
+                  <span className="font-medium">₱{safeToFixed(safeStartingCapital)}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">Final Capital:</span>{' '}
-                  <span className="font-medium">₱{finalCapital.toFixed(2)}</span>
+                  <span className="font-medium">₱{safeToFixed(safeFinalCapital)}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">Profit/Loss:</span>{' '}
                   <span className={`font-bold ${profitColor}`}>
-                    ₱{profit.toFixed(2)}
+                    ₱{safeToFixed(safeProfit)}
                   </span>
                 </div>
               </div>
@@ -101,19 +123,19 @@ const SessionDetailModal = ({ session, onClose }) => {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-800">{totalBets}</div>
+              <div className="text-2xl font-bold text-blue-800">{safeTotalBets}</div>
               <div className="text-sm text-blue-600">Total Spins</div>
             </div>
             <div className="bg-green-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-green-800">{successfulBets}</div>
+              <div className="text-2xl font-bold text-green-800">{safeSuccessfulBets}</div>
               <div className="text-sm text-green-600">Wins</div>
             </div>
             <div className="bg-purple-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-purple-800">{winRate}%</div>
+              <div className="text-2xl font-bold text-purple-800">{safeWinRate}%</div>
               <div className="text-sm text-purple-600">Win Rate</div>
             </div>
             <div className="bg-orange-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-orange-800">₱{highestMartingale}</div>
+              <div className="text-2xl font-bold text-orange-800">₱{safeHighestMartingale}</div>
               <div className="text-sm text-orange-600">Highest Bet</div>
             </div>
           </div>
@@ -137,7 +159,11 @@ const SessionDetailModal = ({ session, onClose }) => {
           {/* Spin History */}
           <div>
             <h3 className="font-semibold text-gray-800 mb-3">🎰 Spin History</h3>
-            <SpinHistoryGrid results={results} />
+            <SpinHistoryGrid 
+              results={safeResults} 
+              chanceEvents={safeChanceEvents}
+              resultTimestamps={safeResultTimestamps}
+            />
           </div>
         </div>
       </div>
