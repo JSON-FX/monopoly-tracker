@@ -419,32 +419,87 @@ const LiveTracker = () => {
   }, [results, resultTimestamps]);
 
   // Chance modal handlers
-  const handleChanceModalMultiplier = (multiplier) => {
+  const handleChanceModalMultiplier = async (multiplier) => {
     const result = handleMultiplier(multiplier);
     if (result.success) {
       const newResults = [...results, 'chance'];
       const newTimestamps = [...resultTimestamps, new Date().toISOString()];
       setResults(newResults);
       setResultTimestamps(newTimestamps);
+      
+      // Save chance result to database
+      if (sessionActive && currentSessionId) {
+        try {
+          await addResultToDb(currentSessionId, {
+            resultValue: 'chance',
+            betAmount: chanceOriginalBet || 0,
+            won: false, // Multiplier is pending, not won yet
+            capitalAfter: currentCapital,
+            martingaleLevel: consecutiveLosses,
+            chanceEvent: {
+              eventType: 'MULTIPLIER',
+              multiplierValue: multiplier,
+              originalBetAmount: chanceOriginalBet || 0
+            }
+          });
+        } catch (error) {
+          console.error('Failed to save chance multiplier result to database:', error);
+        }
+      }
     }
   };
 
-  const handleChanceModalCash = (amount) => {
+  const handleChanceModalCash = async (amount) => {
     const result = handleCashPrize(amount);
     if (result.success) {
       const newResults = [...results, 'chance'];
       const newTimestamps = [...resultTimestamps, new Date().toISOString()];
       setResults(newResults);
       setResultTimestamps(newTimestamps);
+      
+      // Save chance result to database
+      if (sessionActive && currentSessionId) {
+        try {
+          await addResultToDb(currentSessionId, {
+            resultValue: 'chance',
+            betAmount: chanceIsPending ? chanceOriginalBet : 0,
+            won: true, // Cash prize is an immediate win
+            capitalAfter: currentCapital,
+            martingaleLevel: consecutiveLosses,
+            chanceEvent: {
+              eventType: 'CASH_PRIZE',
+              cashAmount: amount,
+              originalBetAmount: chanceIsPending ? chanceOriginalBet : 0
+            }
+          });
+        } catch (error) {
+          console.error('Failed to save chance cash result to database:', error);
+        }
+      }
     }
   };
 
-  const handleChanceModalClose = () => {
+  const handleChanceModalClose = async () => {
     closeModal();
     const newResults = [...results, 'chance'];
     const newTimestamps = [...resultTimestamps, new Date().toISOString()];
     setResults(newResults);
     setResultTimestamps(newTimestamps);
+    
+    // Save chance result to database when modal is closed without selection
+    if (sessionActive && currentSessionId) {
+      try {
+        await addResultToDb(currentSessionId, {
+          resultValue: 'chance',
+          betAmount: 0,
+          won: false,
+          capitalAfter: currentCapital,
+          martingaleLevel: consecutiveLosses
+        });
+      } catch (error) {
+        console.error('Failed to save skipped chance result to database:', error);
+      }
+    }
   };
 
   return (

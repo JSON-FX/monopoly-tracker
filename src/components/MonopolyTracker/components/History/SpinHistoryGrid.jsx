@@ -1,10 +1,41 @@
 import React from 'react';
 
 /**
+ * Utility function to get chance event details for a specific result index
+ * @param {Array} chanceEvents - Array of chance events from session data
+ * @param {Array} results - Array of all results
+ * @param {Array} resultTimestamps - Array of result timestamps
+ * @param {number} resultIndex - Index of the result we want chance details for
+ * @returns {Object|null} Chance event details or null if not found
+ */
+const getChanceEventForResult = (chanceEvents, results, resultTimestamps, resultIndex) => {
+  if (!chanceEvents || !results || !resultTimestamps || results[resultIndex] !== 'chance') {
+    return null;
+  }
+
+  // Get the timestamp of the result we're looking for
+  const resultTimestamp = resultTimestamps[resultIndex];
+  if (!resultTimestamp) return null;
+
+  // Find the chance event that matches this timestamp (within a reasonable window)
+  const matchingEvent = chanceEvents.find(event => {
+    if (!event.timestamp) return false;
+    
+    const eventTime = new Date(event.timestamp).getTime();
+    const resultTime = new Date(resultTimestamp).getTime();
+    
+    // Allow up to 5 seconds difference to account for processing delays
+    return Math.abs(eventTime - resultTime) <= 5000;
+  });
+
+  return matchingEvent || null;
+};
+
+/**
  * SpinHistoryGrid component - Displays spin results in a grid format
  * Follows Single Responsibility Principle - only handles spin results display
  */
-const SpinHistoryGrid = ({ results }) => {
+const SpinHistoryGrid = ({ results, chanceEvents, resultTimestamps }) => {
   if (!results || results.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -35,9 +66,17 @@ const SpinHistoryGrid = ({ results }) => {
     }
   };
 
-  const getDisplayText = (result) => {
+  const getDisplayText = (result, index) => {
     switch (result) {
       case 'chance':
+        const chanceEvent = getChanceEventForResult(chanceEvents, results, resultTimestamps, index);
+        if (chanceEvent) {
+          if (chanceEvent.event_type === 'CASH_PRIZE') {
+            return `C-$${chanceEvent.cash_amount || 0}`;
+          } else if (chanceEvent.event_type === 'MULTIPLIER') {
+            return `C-${chanceEvent.multiplier_value || 1}x`;
+          }
+        }
         return 'C';
       case '2rolls':
         return '2R';
@@ -46,6 +85,23 @@ const SpinHistoryGrid = ({ results }) => {
       default:
         return result.toUpperCase();
     }
+  };
+
+  const getChanceEventTooltip = (result, index) => {
+    if (result !== 'chance') {
+      return `Spin ${index + 1}: ${result === 'chance' ? 'Chance Segment' : result.toUpperCase()}`;
+    }
+    
+    const chanceEvent = getChanceEventForResult(chanceEvents, results, resultTimestamps, index);
+    if (chanceEvent) {
+      if (chanceEvent.event_type === 'CASH_PRIZE') {
+        return `Spin ${index + 1}: Chance - Cash Prize: ₱${chanceEvent.cash_amount || 0}`;
+      } else if (chanceEvent.event_type === 'MULTIPLIER') {
+        return `Spin ${index + 1}: Chance - Multiplier: ${chanceEvent.multiplier_value || 1}x (Original bet: ₱${chanceEvent.original_bet_amount || 0})`;
+      }
+    }
+    
+    return `Spin ${index + 1}: Chance Segment`;
   };
 
   return (
@@ -66,9 +122,9 @@ const SpinHistoryGrid = ({ results }) => {
           <div
             key={index}
             className={`px-3 py-2 rounded-lg text-center font-semibold ${getResultStyle(result)} transition-transform hover:scale-105`}
-            title={`Spin ${index + 1}: ${result === 'chance' ? 'Chance Segment' : result.toUpperCase()}`}
+            title={getChanceEventTooltip(result, index)}
           >
-            {getDisplayText(result)}
+            {getDisplayText(result, index)}
           </div>
         ))}
       </div>

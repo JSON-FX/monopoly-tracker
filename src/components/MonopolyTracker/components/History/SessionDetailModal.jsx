@@ -28,7 +28,9 @@ const SessionDetailModal = ({ session, onClose }) => {
     winRate,
     highestMartingale,
     duration,
-    results
+    results,
+    chanceEvents,
+    resultTimestamps
   } = session;
 
   // Safe conversion for database values with null/undefined checks
@@ -37,6 +39,8 @@ const SessionDetailModal = ({ session, onClose }) => {
   const safeProfit = Number(profit) || 0;
   const safeHighestMartingale = Number(highestMartingale) || 0;
   const safeResults = results || [];
+  const safeChanceEvents = chanceEvents || [];
+  const safeResultTimestamps = resultTimestamps || [];
   const safeTotalBets = totalBets || 0;
   const safeSuccessfulBets = successfulBets || 0;
   const safeWinRate = winRate || 0;
@@ -155,7 +159,11 @@ const SessionDetailModal = ({ session, onClose }) => {
           {/* Spin History */}
           <div>
             <h3 className="font-semibold text-gray-800 mb-3">🎰 Spin History</h3>
-            <SpinHistoryGrid results={safeResults} />
+            <SpinHistoryGrid 
+              results={safeResults} 
+              chanceEvents={safeChanceEvents}
+              resultTimestamps={safeResultTimestamps}
+            />
           </div>
         </div>
       </div>

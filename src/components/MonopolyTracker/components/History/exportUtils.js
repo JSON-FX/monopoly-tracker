@@ -4,6 +4,63 @@
  */
 
 /**
+ * Utility function to get chance event details for a specific result index
+ * @param {Array} chanceEvents - Array of chance events from session data
+ * @param {Array} results - Array of all results
+ * @param {Array} resultTimestamps - Array of result timestamps
+ * @param {number} resultIndex - Index of the result we want chance details for
+ * @returns {Object|null} Chance event details or null if not found
+ */
+const getChanceEventForResult = (chanceEvents, results, resultTimestamps, resultIndex) => {
+  if (!chanceEvents || !results || !resultTimestamps || results[resultIndex] !== 'chance') {
+    return null;
+  }
+
+  // Get the timestamp of the result we're looking for
+  const resultTimestamp = resultTimestamps[resultIndex];
+  if (!resultTimestamp) return null;
+
+  // Find the chance event that matches this timestamp (within a reasonable window)
+  const matchingEvent = chanceEvents.find(event => {
+    if (!event.timestamp) return false;
+    
+    const eventTime = new Date(event.timestamp).getTime();
+    const resultTime = new Date(resultTimestamp).getTime();
+    
+    // Allow up to 5 seconds difference to account for processing delays
+    return Math.abs(eventTime - resultTime) <= 5000;
+  });
+
+  return matchingEvent || null;
+};
+
+/**
+ * Get enhanced display text for results including chance event details
+ * @param {string} result - The result value
+ * @param {Array} chanceEvents - Array of chance events
+ * @param {Array} results - Array of all results
+ * @param {Array} resultTimestamps - Array of result timestamps
+ * @param {number} index - Index of the result
+ * @returns {string} Enhanced result display text
+ */
+const getEnhancedResultText = (result, chanceEvents, results, resultTimestamps, index) => {
+  if (result !== 'chance') {
+    return result;
+  }
+
+  const chanceEvent = getChanceEventForResult(chanceEvents, results, resultTimestamps, index);
+  if (chanceEvent) {
+    if (chanceEvent.event_type === 'CASH_PRIZE') {
+      return `chance-cash-₱${chanceEvent.cash_amount || 0}`;
+    } else if (chanceEvent.event_type === 'MULTIPLIER') {
+      return `chance-multiplier-${chanceEvent.multiplier_value || 1}x`;
+    }
+  }
+  
+  return 'chance';
+};
+
+/**
  * Export session data to CSV file
  * @param {Object} session - Session object to export
  */
@@ -25,7 +82,9 @@ export const exportSessionToCSV = (session) => {
       winRate,
       highestMartingale,
       duration,
-      results
+      results,
+      chanceEvents,
+      resultTimestamps
     } = session;
 
     // Safe conversion for all values
@@ -34,6 +93,8 @@ export const exportSessionToCSV = (session) => {
     const safeProfit = Number(profit) || 0;
     const safeHighestMartingale = Number(highestMartingale) || 0;
     const safeResults = results || [];
+    const safeChanceEvents = chanceEvents || [];
+    const safeResultTimestamps = resultTimestamps || [];
     const safeTotalBets = totalBets || 0;
     const safeSuccessfulBets = successfulBets || 0;
     const safeWinRate = winRate || 0;
@@ -52,8 +113,14 @@ export const exportSessionToCSV = (session) => {
       'Successful Bets',
       'Win Rate (%)',
       'Highest Martingale',
-      'Spin Results'
+      'Spin Results',
+      'Chance Events Count'
     ];
+
+    // Enhanced spin results with chance event details
+    const enhancedResults = safeResults.map((result, index) => 
+      getEnhancedResultText(result, safeChanceEvents, safeResults, safeResultTimestamps, index)
+    );
 
     // Create CSV row
     const csvRow = [
@@ -68,16 +135,27 @@ export const exportSessionToCSV = (session) => {
       safeSuccessfulBets,
       safeWinRate,
       safeHighestMartingale.toFixed(2),
-      safeResults.join(';') // Use semicolon to separate spin results
+      enhancedResults.join(';'), // Use semicolon to separate spin results
+      safeChanceEvents.length
     ];
 
-    // Create detailed spin data
-    const spinHeaders = ['Spin Number', 'Result', 'Timestamp'];
-    const spinData = safeResults.map((result, index) => [
-      index + 1,
-      result || 'unknown',
-      `Spin ${index + 1}` // Could be enhanced with actual timestamps if available
-    ]);
+    // Create detailed spin data with chance event information
+    const spinHeaders = ['Spin Number', 'Result', 'Chance Event Type', 'Chance Value', 'Timestamp'];
+    const spinData = safeResults.map((result, index) => {
+      const chanceEvent = result === 'chance' ? 
+        getChanceEventForResult(safeChanceEvents, safeResults, safeResultTimestamps, index) : null;
+      
+      return [
+        index + 1,
+        result || 'unknown',
+        chanceEvent ? chanceEvent.event_type : '',
+        chanceEvent ? 
+          (chanceEvent.event_type === 'CASH_PRIZE' ? 
+            `₱${chanceEvent.cash_amount || 0}` : 
+            `${chanceEvent.multiplier_value || 1}x (bet: ₱${chanceEvent.original_bet_amount || 0})`) : '',
+        safeResultTimestamps[index] ? new Date(safeResultTimestamps[index]).toLocaleString() : `Spin ${index + 1}`
+      ];
+    });
 
     // Combine all data
     const csvContent = [
@@ -133,7 +211,9 @@ export const copySessionRawData = async (session) => {
       winRate,
       highestMartingale,
       duration,
-      results
+      results,
+      chanceEvents,
+      resultTimestamps
     } = session;
 
     // Safe conversion for all values
@@ -142,10 +222,30 @@ export const copySessionRawData = async (session) => {
     const safeProfit = Number(profit) || 0;
     const safeHighestMartingale = Number(highestMartingale) || 0;
     const safeResults = results || [];
+    const safeChanceEvents = chanceEvents || [];
+    const safeResultTimestamps = resultTimestamps || [];
     const safeTotalBets = totalBets || 0;
     const safeSuccessfulBets = successfulBets || 0;
     const safeWinRate = winRate || 0;
     const safeDuration = duration || 'Unknown';
+
+    // Enhanced spin results with chance event details
+    const enhancedSpinResults = safeResults.map((result, index) => {
+      if (result !== 'chance') {
+        return `${index + 1}. ${result || 'unknown'}`;
+      }
+      
+      const chanceEvent = getChanceEventForResult(safeChanceEvents, safeResults, safeResultTimestamps, index);
+      if (chanceEvent) {
+        if (chanceEvent.event_type === 'CASH_PRIZE') {
+          return `${index + 1}. chance - Cash Prize: ₱${chanceEvent.cash_amount || 0}`;
+        } else if (chanceEvent.event_type === 'MULTIPLIER') {
+          return `${index + 1}. chance - Multiplier: ${chanceEvent.multiplier_value || 1}x (Original bet: ₱${chanceEvent.original_bet_amount || 0})`;
+        }
+      }
+      
+      return `${index + 1}. chance`;
+    });
 
     // Format raw data
     const rawData = `
@@ -170,9 +270,14 @@ Successful Bets: ${safeSuccessfulBets}
 Win Rate: ${safeWinRate}%
 Highest Martingale: ₱${safeHighestMartingale.toFixed(2)}
 
-SPIN RESULTS
-===========
-${safeResults.map((result, index) => `${index + 1}. ${result || 'unknown'}`).join('\n')}
+CHANCE EVENTS
+============
+Total Chance Events: ${safeChanceEvents.length}
+${safeChanceEvents.length > 0 ? generateChanceEventsBreakdown(safeChanceEvents) : 'No chance events recorded'}
+
+SPIN RESULTS (with Chance Details)
+=================================
+${enhancedSpinResults.join('\n')}
 
 RESULTS BREAKDOWN
 ================
@@ -188,6 +293,23 @@ Raw Results Array: [${safeResults.join(', ')}]
     console.error('Error copying to clipboard:', error);
     showNotification('Failed to copy data to clipboard', 'error');
   }
+};
+
+/**
+ * Generate chance events breakdown for raw data
+ * @param {Array} chanceEvents - Array of chance events
+ * @returns {string} Formatted breakdown string
+ */
+const generateChanceEventsBreakdown = (chanceEvents) => {
+  const cashPrizes = chanceEvents.filter(e => e.event_type === 'CASH_PRIZE');
+  const multipliers = chanceEvents.filter(e => e.event_type === 'MULTIPLIER');
+  
+  const totalCashWon = cashPrizes.reduce((sum, e) => sum + (Number(e.cash_amount) || 0), 0);
+  const averageMultiplier = multipliers.length > 0 ? 
+    (multipliers.reduce((sum, e) => sum + (Number(e.multiplier_value) || 0), 0) / multipliers.length).toFixed(2) : '0';
+
+  return `Cash Prizes: ${cashPrizes.length} (Total: ₱${totalCashWon.toFixed(2)})
+Multipliers: ${multipliers.length} (Average: ${averageMultiplier}x)`;
 };
 
 /**

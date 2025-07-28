@@ -3,6 +3,37 @@ import { calculateSessionDuration } from '../../utils/calculations';
 import { useSessionData } from '../../../../hooks/useSessionData';
 
 /**
+ * Utility function to get chance event details for a specific result index
+ * @param {Array} chanceEvents - Array of chance events from session data
+ * @param {Array} results - Array of all results
+ * @param {Array} resultTimestamps - Array of result timestamps
+ * @param {number} resultIndex - Index of the result we want chance details for
+ * @returns {Object|null} Chance event details or null if not found
+ */
+const getChanceEventForResult = (chanceEvents, results, resultTimestamps, resultIndex) => {
+  if (!chanceEvents || !results || !resultTimestamps || results[resultIndex] !== 'chance') {
+    return null;
+  }
+
+  // Get the timestamp of the result we're looking for
+  const resultTimestamp = resultTimestamps[resultIndex];
+  if (!resultTimestamp) return null;
+
+  // Find the chance event that matches this timestamp (within a reasonable window)
+  const matchingEvent = chanceEvents.find(event => {
+    if (!event.timestamp) return false;
+    
+    const eventTime = new Date(event.timestamp).getTime();
+    const resultTime = new Date(resultTimestamp).getTime();
+    
+    // Allow up to 5 seconds difference to account for processing delays
+    return Math.abs(eventTime - resultTime) <= 5000;
+  });
+
+  return matchingEvent || null;
+};
+
+/**
  * Simple notification helper
  */
 const showNotification = (message, type = 'info') => {
@@ -60,9 +91,17 @@ const getResultStyle = (result) => {
 /**
  * Get display text for results
  */
-const getDisplayText = (result) => {
+const getDisplayText = (result, chanceEvents, results, resultTimestamps, index) => {
   switch (result) {
     case 'chance':
+      const chanceEvent = getChanceEventForResult(chanceEvents, results, resultTimestamps, index);
+      if (chanceEvent) {
+        if (chanceEvent.event_type === 'CASH_PRIZE') {
+          return `C-$${chanceEvent.cash_amount || 0}`;
+        } else if (chanceEvent.event_type === 'MULTIPLIER') {
+          return `C-${chanceEvent.multiplier_value || 1}x`;
+        }
+      }
       return 'C';
     case '2rolls':
       return '2R';
@@ -95,7 +134,9 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
     totalBets,
     winRate,
     highestMartingale,
-    results
+    results,
+    chanceEvents,
+    resultTimestamps
   } = session;
 
   const duration = calculateSessionDuration(startTime, endTime);
@@ -108,6 +149,8 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
   const safeTotalBets = totalBets || 0;
   const safeWinRate = winRate || 0;
   const safeResults = results || [];
+  const safeChanceEvents = chanceEvents || [];
+  const safeResultTimestamps = resultTimestamps || [];
   
   const profitColor = safeProfit >= 0 ? 'text-green-600' : 'text-red-600';
   const profitIcon = safeProfit >= 0 ? '📈' : '📉';
@@ -207,7 +250,7 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
                 key={index}
                 className={`text-xs px-1.5 py-0.5 rounded font-semibold border ${getResultStyle(result)}`}
               >
-                {getDisplayText(result)}
+                {getDisplayText(result, safeChanceEvents, safeResults, safeResultTimestamps, index)}
               </span>
             ))}
             {safeResults.length > 10 && (
