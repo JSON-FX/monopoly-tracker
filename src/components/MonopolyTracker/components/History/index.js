@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import SessionHistoryItem from './SessionHistoryItem';
 import SessionDetailModal from './SessionDetailModal';
 import { useSessionData } from '../../../../hooks/useSessionData';
@@ -34,6 +34,13 @@ const History = ({ sessionHistory, onClose, onHistoryUpdate }) => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
+  // Search and pagination state
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  
   const { clearAllHistory } = useSessionData();
 
   const handleSessionClick = (session) => {
@@ -61,6 +68,75 @@ const History = ({ sessionHistory, onClose, onHistoryUpdate }) => {
   const handleDeleteSession = (sessionId) => {
     // Remove the session from the list immediately (optimistic update)
     onHistoryUpdate && onHistoryUpdate();
+    // Reset to first page after deletion
+    setCurrentPage(1);
+  };
+
+  // Filter and paginate sessions
+  const filteredAndPaginatedSessions = useMemo(() => {
+    if (!sessionHistory || sessionHistory.length === 0) {
+      return { sessions: [], totalPages: 0, totalItems: 0 };
+    }
+
+    // Apply date filters
+    let filtered = sessionHistory.slice(); // Show oldest first (no reverse)
+    
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(session => {
+        if (!session.startTime) return false;
+        const sessionDate = new Date(session.startTime);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate >= fromDate;
+      });
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(session => {
+        if (!session.startTime) return false;
+        const sessionDate = new Date(session.startTime);
+        return sessionDate <= toDate;
+      });
+    }
+
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    
+    // Apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedSessions = filtered.slice(startIndex, endIndex);
+
+    return {
+      sessions: paginatedSessions,
+      totalPages,
+      totalItems
+    };
+  }, [sessionHistory, dateFrom, dateTo, currentPage, itemsPerPage]);
+
+  // Reset to first page when filters change
+  const handleDateFromChange = (value) => {
+    setDateFrom(value);
+    setCurrentPage(1);
+  };
+
+  const handleDateToChange = (value) => {
+    setDateTo(value);
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setCurrentPage(1);
   };
 
   if (!sessionHistory || sessionHistory.length === 0) {
@@ -106,20 +182,145 @@ const History = ({ sessionHistory, onClose, onHistoryUpdate }) => {
         </div>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="p-4 border-b bg-gray-50 space-y-3">
+        {/* Date Filters */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">From:</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => handleDateFromChange(e.target.value)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">To:</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => handleDateToChange(e.target.value)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={handleClearFilters}
+            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Show:</label>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(e.target.value)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-sm text-gray-600">per page</span>
+          </div>
+          
+          <div className="text-sm text-gray-600">
+            Showing {filteredAndPaginatedSessions.totalItems > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredAndPaginatedSessions.totalItems)} of {filteredAndPaginatedSessions.totalItems} sessions
+          </div>
+        </div>
+      </div>
+
       {/* Sessions List */}
       <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-        {sessionHistory
-          .slice()
-          .reverse() // Show newest first
-          .map((session) => (
+        {filteredAndPaginatedSessions.sessions.length > 0 ? (
+          filteredAndPaginatedSessions.sessions.map((session) => (
             <SessionHistoryItem
               key={session.id}
               session={session}
               onClick={() => handleSessionClick(session)}
               onDelete={handleDeleteSession}
             />
-          ))}
+          ))
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">🔍</div>
+            <p>No sessions found</p>
+            <p className="text-sm">Try adjusting your search filters</p>
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
+      {filteredAndPaginatedSessions.totalPages > 1 && (
+        <div className="p-4 border-t bg-gray-50">
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            {/* Page Numbers */}
+            {(() => {
+              const pages = [];
+              const totalPages = filteredAndPaginatedSessions.totalPages;
+              const maxVisible = 5;
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+              
+              if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+              }
+              
+              for (let i = startPage; i <= endPage; i++) {
+                pages.push(
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i)}
+                    className={`px-3 py-1 text-sm border rounded-lg ${
+                      currentPage === i
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+              return pages;
+            })()}
+            
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === filteredAndPaginatedSessions.totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(filteredAndPaginatedSessions.totalPages)}
+              disabled={currentPage === filteredAndPaginatedSessions.totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Clear All Confirmation */}
       {showClearConfirm && (
