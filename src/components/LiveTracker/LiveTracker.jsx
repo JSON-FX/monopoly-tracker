@@ -654,12 +654,12 @@ const LiveTracker = () => {
             consecutiveLosses,
             recommendation,
             sessionActive,
-            totalResults: results.length,
             currentBetAmount,
             currentCapital,
             sessionProfit,
             totalBets,
             successfulBets,
+            results, // Add results array for last 3 rolls display
             onStartSession: () => setShowSessionModal(true),
             onEndSession: () => {
               if (window.confirm('End current session? This will archive the session to history and stop tracking.')) {
