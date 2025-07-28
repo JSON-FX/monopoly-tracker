@@ -14,6 +14,7 @@ import { getBettingRecommendation, analyzeOnesPattern } from './MonopolyTracker/
 import ResultEntry from './MonopolyTracker/components/ResultEntry';
 import RecentResults from './MonopolyTracker/components/RecentResults';
 import ChanceModal from './MonopolyTracker/components/ChanceModal';
+import History from './MonopolyTracker/components/History';
 
 const MonopolyTracker = () => {
   // Core state
@@ -653,27 +654,12 @@ const MonopolyTracker = () => {
           </div>
         )}
 
-        {/* History Tab - Basic implementation */}
+        {/* History Tab */}
         {activeTab === 'history' && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Session History</h2>
-            <div className="text-center py-8">
-              <div className="text-4xl mb-2">🏗️</div>
-              <div className="text-gray-500">History component coming soon in Phase 3 completion</div>
-              <button
-                onClick={() => {
-                  if (window.confirm('Clear all history?')) {
-                    resetHistory();
-                    clearData();
-                    alert('✅ All history cleared!');
-                  }
-                }}
-                className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                🗑️ Clear All History
-              </button>
-            </div>
-          </div>
+          <History 
+            sessionHistory={sessionHistory}
+            onClose={() => setActiveTab('tracker')}
+          />
         )}
       </div>
       

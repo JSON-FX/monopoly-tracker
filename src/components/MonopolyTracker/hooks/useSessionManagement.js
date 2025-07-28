@@ -26,6 +26,13 @@ export const useSessionManagement = (sessionState, updateState) => {
     } = sessionState;
 
     if (sessionStartTime && results.length > 0) {
+      // Check if session with same start time already exists in history
+      const existingSession = sessionHistory.find(session => session.startTime === sessionStartTime);
+      if (existingSession) {
+        console.log('Session already archived, skipping duplicate archiving');
+        return;
+      }
+
       const endTime = customEndTime || sessionEndTime || new Date().toISOString();
       const duration = calculateSessionDuration(sessionStartTime, endTime);
       
@@ -54,8 +61,11 @@ export const useSessionManagement = (sessionState, updateState) => {
    * Initialize a new session
    */
   const initializeSession = useCallback((startCapital, baseBetAmount) => {
-    // Archive current session if it exists
-    archiveCurrentSession();
+    // Only archive current session if it's active and hasn't been ended yet
+    const { sessionActive, sessionEndTime, results } = sessionState;
+    if (sessionActive && !sessionEndTime && results.length > 0) {
+      archiveCurrentSession();
+    }
     
     // Clear current session data for fresh start
     updateState({
@@ -77,7 +87,7 @@ export const useSessionManagement = (sessionState, updateState) => {
       sessionStartTime: new Date().toISOString(),
       sessionEndTime: null
     });
-  }, [archiveCurrentSession, updateState]);
+  }, [archiveCurrentSession, updateState, sessionState]);
 
   /**
    * Clear current session
