@@ -1,6 +1,7 @@
 import React from 'react';
 import ResultButtons from './ResultButtons';
 import UndoButton from './UndoButton';
+import SessionControls from '../SessionControls';
 import { filterOutChanceResults } from '../../utils/patterns';
 
 /**
@@ -10,7 +11,7 @@ import { filterOutChanceResults } from '../../utils/patterns';
  * @param {Object} sessionData - All session data and controls
  * @returns {JSX.Element} ResultEntry component
  */
-const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
+const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInactive = false }) => {
   const {
     consecutiveLosses,
     recommendation,
@@ -43,8 +44,26 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
 
   const last3Rolls = getLast3Rolls();
 
+    // If hiding controls when inactive and session is active, show minimal session controls only
+  if (hideControlsWhenInactive && sessionActive) {
+    return (
+      <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border p-3" style={{ zIndex: 10000 }}>
+        <div className="px-2 py-1">
+          <h3 className="text-xs font-semibold text-center mb-2">Session Controls</h3>
+          <SessionControls
+            sessionActive={sessionActive}
+            isTargetAchieved={isTargetAchieved}
+            onStartSession={onStartSession}
+            onEndSession={onEndSession}
+            onClearSession={onClearSession}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 bg-white rounded-lg shadow-xl border p-3 max-w-4xl mx-auto">
+    <div className="fixed bottom-4 left-4 right-4 bg-white rounded-lg shadow-xl border p-3 max-w-4xl mx-auto" style={{ zIndex: 10000 }}>
       <div className="grid grid-cols-3 gap-4">
         {/* Column 1 - Buttons & Session Controls */}
         <div className="space-y-2">
@@ -53,37 +72,13 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
           <UndoButton onUndo={onUndo} disabled={isTargetAchieved || !sessionActive} />
           
           {/* Session Controls */}
-          <div className="flex gap-1">
-            {!sessionActive ? (
-              <button
-                onClick={onStartSession}
-                className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded transition-colors jackpot-glow"
-              >
-                💰 Start
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={onEndSession}
-                  className={`flex-1 h-8 text-white text-xs font-bold rounded transition-colors ${
-                    isTargetAchieved 
-                      ? 'bg-yellow-600 hover:bg-yellow-700 jackpot-glow' 
-                      : 'bg-orange-600 hover:bg-orange-700'
-                  }`}
-                >
-                  {isTargetAchieved ? 'End Session' : '⏹️ End'}
-                </button>
-                {!isTargetAchieved && (
-                  <button
-                    onClick={onClearSession}
-                    className="flex-1 h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded transition-colors"
-                  >
-                    🗑️ Clear
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          <SessionControls
+            sessionActive={sessionActive}
+            isTargetAchieved={isTargetAchieved}
+            onStartSession={onStartSession}
+            onEndSession={onEndSession}
+            onClearSession={onClearSession}
+          />
           
 
         </div>

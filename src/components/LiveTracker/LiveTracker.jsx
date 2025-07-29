@@ -330,6 +330,7 @@ const LiveTracker = () => {
   }, [currentSessionId, currentCapital, sessionProfit, totalBets, successfulBets, highestMartingale, endSession, loadSessionHistory]);
 
   const clearCurrentSession = useCallback(() => {
+    console.log('🚀 clearCurrentSession: Starting to clear all session data...');
     setSessionActive(false);
     setCurrentSessionId(null);
     setStartingCapital(0);
@@ -350,11 +351,94 @@ const LiveTracker = () => {
     setTargetProfitAmount(0);
     setTargetWinCount(0);
     setCurrentWinCount(0);
-    localStorage.removeItem('monopolyTargetProfit');
+    
+    try {
+      localStorage.removeItem('monopolyTargetProfit');
+      console.log('🚀 clearCurrentSession: localStorage cleared');
+    } catch (e) {
+      console.warn('Could not clear localStorage:', e);
+    }
     
     // Clear session duration
     setSessionDuration(0);
+    console.log('🚀 clearCurrentSession: All session data cleared successfully');
   }, []);
+
+  // Memoized session control functions (defined after clearCurrentSession)
+  const handleEndSession = useCallback(() => {
+    console.log('🚀 LiveTracker.handleEndSession called');
+    // Skip confirmation if target profit achieved
+    const isTargetAchieved = targetProfitAmount > 0 && sessionProfit >= targetProfitAmount;
+    console.log('🚀 isTargetAchieved:', isTargetAchieved);
+    
+         // TEMPORARY: Auto-confirm for testing
+     let confirmed = true;
+     console.log('🚀 TESTING: Auto-confirming end session');
+     
+     /* ORIGINAL CONFIRMATION CODE - Will restore after testing
+     let confirmed = false;
+     if (isTargetAchieved) {
+       confirmed = true;
+       console.log('🚀 Target achieved - skipping confirmation');
+     } else {
+       console.log('🚀 Showing confirmation dialog...');
+       confirmed = window.confirm('🎯 End current session?\n\nThis will archive the session to history and stop tracking.\n\nClick OK to confirm or Cancel to continue.');
+       console.log('🚀 Dialog result:', confirmed);
+     }
+     */
+    
+    if (confirmed) {
+      try {
+        // Clear Target Profit tracking immediately
+        setTargetProfitAmount(0);
+        setTargetWinCount(0);
+        setCurrentWinCount(0);
+        
+        try {
+          localStorage.removeItem('monopolyTargetProfit');
+        } catch (e) {
+          console.warn('Could not clear localStorage:', e);
+        }
+        
+        // End the session
+        setSessionActive(false);
+        setSessionEndTime(new Date().toISOString());
+        
+        // Archive the session (non-blocking)
+        const endTime = new Date().toISOString();
+        archiveCurrentSession(endTime).catch(error => {
+          console.error('Failed to archive session (background):', error);
+        });
+        
+        alert('✅ Session ended successfully!');
+      } catch (error) {
+        console.error('Error ending session:', error);
+        alert('❌ Failed to end session. Please try again.');
+      }
+    }
+  }, [targetProfitAmount, sessionProfit, archiveCurrentSession]);
+
+  const handleClearSession = useCallback(() => {
+    console.log('🚀 LiveTracker.handleClearSession called');
+    
+    // TEMPORARY: Auto-confirm for testing
+    const confirmed = true;
+    console.log('🚀 TESTING: Auto-confirming clear session');
+    
+    /* ORIGINAL CONFIRMATION CODE - Will restore after testing
+    console.log('🚀 Showing clear confirmation dialog...');
+    const confirmed = window.confirm('🚨 Clear Current Session?\n\nThis action cannot be undone!\n\nAll current session data will be permanently lost.\n\nClick OK to clear or Cancel to keep session.');
+    console.log('🚀 Clear dialog result:', confirmed);
+    */
+    
+    if (confirmed) {
+      console.log('🚀 User confirmed clear - calling clearCurrentSession...');
+      clearCurrentSession();
+      alert('✅ Current session cleared!');
+    } else {
+      console.log('🚀 User cancelled clear operation');
+    }
+  }, [clearCurrentSession]);
 
   // Handle result addition
   const handleAddResult = useCallback(async (result) => {
@@ -814,7 +898,8 @@ const LiveTracker = () => {
       </div>
       
       {/* Floating Quick Result Entry with Session Controls */}
-      {isFloatingCardVisible && !showSessionModal && !chanceModalOpen && (
+      {/* Always show session controls when session is active, otherwise respect floating card visibility */}
+      {((sessionActive && !showSessionModal && !chanceModalOpen) || (isFloatingCardVisible && !showSessionModal && !chanceModalOpen)) && (
         <ResultEntry 
           onResultClick={handleAddResult} 
           onUndo={handleUndoWithAlert} 
@@ -833,48 +918,10 @@ const LiveTracker = () => {
             targetProfitAmount,
             sessionDuration: formatDuration(sessionDuration),
             onStartSession: () => setShowSessionModal(true),
-            onEndSession: () => {
-              // Skip confirmation if target profit achieved
-              const isTargetAchieved = targetProfitAmount > 0 && sessionProfit >= targetProfitAmount;
-              const confirmed = isTargetAchieved ? true : window.confirm('End current session? This will archive the session to history and stop tracking.');
-              
-              if (confirmed) {
-                try {
-                  // Clear Target Profit tracking immediately
-                  setTargetProfitAmount(0);
-                  setTargetWinCount(0);
-                  setCurrentWinCount(0);
-                  
-                  try {
-                    localStorage.removeItem('monopolyTargetProfit');
-                  } catch (e) {
-                    console.warn('Could not clear localStorage:', e);
-                  }
-                  
-                  // End the session
-                  setSessionActive(false);
-                  setSessionEndTime(new Date().toISOString());
-                  
-                  // Archive the session (non-blocking)
-                  const endTime = new Date().toISOString();
-                  archiveCurrentSession(endTime).catch(error => {
-                    console.error('Failed to archive session (background):', error);
-                  });
-                  
-                  alert('✅ Session ended successfully!');
-                } catch (error) {
-                  console.error('Error ending session:', error);
-                  alert('❌ Failed to end session. Please try again.');
-                }
-              }
-            },
-            onClearSession: () => {
-              if (window.confirm('🚨 Are you sure you want to clear the current session? This action cannot be undone.')) {
-                clearCurrentSession();
-                alert('✅ Current session cleared!');
-              }
-            }
+            onEndSession: handleEndSession,
+            onClearSession: handleClearSession
           }}
+          hideControlsWhenInactive={!isFloatingCardVisible}
         />
       )}
       

@@ -11,6 +11,7 @@ import RegisterForm from './components/Auth/RegisterForm';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthWrapper from './components/Auth/AuthWrapper';
 import useSessionData from './hooks/useSessionData';
+
 import './index.css';
 
 /**
