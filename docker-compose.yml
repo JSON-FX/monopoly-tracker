@@ -25,6 +25,7 @@ services:
       - "3306:3306"
     volumes:
       - ./backend/src/config/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "user", "-ppassword"]
       timeout: 20s
@@ -63,3 +64,6 @@ services:
 networks:
   monopoly-network:
     driver: bridge
+
+volumes:
+  db_data:
