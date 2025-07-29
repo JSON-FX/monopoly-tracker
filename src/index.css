@@ -114,4 +114,54 @@ code {
 @keyframes pulseRed {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
   50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+}
+
+/* Jackpot Gold Glow Animation */
+@keyframes jackpotGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px #FFD700,
+      0 0 10px #FFD700,
+      0 0 15px #FFD700,
+      0 0 20px #FFA500,
+      0 0 35px #FFA500,
+      0 0 40px #FF8C00;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 
+      0 0 10px #FFD700,
+      0 0 20px #FFD700,
+      0 0 30px #FFD700,
+      0 0 40px #FFA500,
+      0 0 70px #FFA500,
+      0 0 80px #FF8C00;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes jackpotPulse {
+  0%, 100% {
+    color: #8B4513;
+  }
+  50% {
+    color: #A0522D;
+  }
+}
+
+.jackpot-glow {
+  animation: jackpotGlow 1.5s ease-in-out infinite;
+  background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700) !important;
+  background-size: 200% 200% !important;
+  color: #8B4513 !important;
+  border: 2px solid #FFD700 !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) !important;
+}
+
+.jackpot-text {
+  animation: jackpotPulse 2s ease-in-out infinite;
+  color: #8B4513 !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) !important;
 } 

@@ -37,6 +37,9 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
     return last3.reverse(); // Reverse to show latest to oldest
   };
 
+  // Check if target profit has been achieved
+  const isTargetAchieved = sessionActive && targetWinCount > 0 && currentWinCount >= targetWinCount;
+
   const last3Rolls = getLast3Rolls();
 
   return (
@@ -45,15 +48,15 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
         {/* Column 1 - Buttons & Session Controls */}
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-center">Quick Entry</h3>
-          <ResultButtons onResultClick={onResultClick} />
-          <UndoButton onUndo={onUndo} />
+          <ResultButtons onResultClick={onResultClick} disabled={isTargetAchieved || !sessionActive} />
+          <UndoButton onUndo={onUndo} disabled={isTargetAchieved || !sessionActive} />
           
           {/* Session Controls */}
           <div className="flex gap-1">
             {!sessionActive ? (
               <button
                 onClick={onStartSession}
-                className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded transition-colors"
+                className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded transition-colors jackpot-glow"
               >
                 💰 Start
               </button>
@@ -61,16 +64,22 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
               <>
                 <button
                   onClick={onEndSession}
-                  className="flex-1 h-8 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded transition-colors"
-                >
-                  ⏹️ End
-                </button>
-                <button
-                  onClick={onClearSession}
-                  className="flex-1 h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded transition-colors"
-                >
-                  🗑️ Clear
-                </button>
+                  className={`flex-1 h-8 text-white text-xs font-bold rounded transition-colors ${
+                    isTargetAchieved 
+                      ? 'bg-yellow-600 hover:bg-yellow-700 jackpot-glow' 
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                                  >
+                    {isTargetAchieved ? 'End Session' : '⏹️ End'}
+                  </button>
+                {!isTargetAchieved && (
+                  <button
+                    onClick={onClearSession}
+                    className="flex-1 h-8 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded transition-colors"
+                  >
+                    🗑️ Clear
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -116,9 +125,17 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
                 {totalBets > 0 ? ((successfulBets / totalBets) * 100).toFixed(1) : 0}%
               </div>
             </div>
-            <div className="bg-gray-50 p-1 rounded text-center col-span-2">
-              <div className="text-gray-600">P/L</div>
-              <div className={`font-bold ${sessionProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`p-1 rounded text-center col-span-2 ${
+              isTargetAchieved ? 'jackpot-glow' : 'bg-gray-50'
+            }`}>
+              <div className={isTargetAchieved ? 'jackpot-text' : 'text-gray-600'}>
+                {isTargetAchieved ? '🎉 TARGET ACHIEVED! 🎉' : 'P/L'}
+              </div>
+              <div className={`font-bold ${
+                isTargetAchieved 
+                  ? 'jackpot-text text-2xl' 
+                  : sessionProfit >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
                 {sessionProfit >= 0 ? '+' : ''}₱{sessionProfit.toFixed(0)}
               </div>
             </div>
@@ -175,9 +192,18 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
                 {consecutiveLosses}/7
               </div>
             </div>
-            <div className="bg-gray-50 border border-gray-300 p-1 rounded text-center">
-              <div className="text-xs text-gray-600">Target Win</div>
+            <div className={`border p-1 rounded text-center ${
+              isTargetAchieved 
+                ? 'jackpot-glow border-yellow-500' 
+                : 'bg-gray-50 border-gray-300'
+            }`}>
+              <div className={`text-xs ${
+                isTargetAchieved ? 'jackpot-text' : 'text-gray-600'
+              }`}>
+                {isTargetAchieved ? '🎯 COMPLETE!' : 'Target Win'}
+              </div>
               <div className={`text-sm font-bold ${
+                isTargetAchieved ? 'jackpot-text' :
                 targetWinCount > 0 ? (
                   currentWinCount >= targetWinCount ? 'text-green-600' : 'text-blue-600'
                 ) : 'text-gray-400'
