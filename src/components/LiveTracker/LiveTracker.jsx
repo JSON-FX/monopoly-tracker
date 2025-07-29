@@ -34,6 +34,7 @@ const LiveTracker = () => {
   
   // Target Profit tracking
   const [targetWinCount, setTargetWinCount] = useState(0);
+  const [targetProfitAmount, setTargetProfitAmount] = useState(0);
   const [currentWinCount, setCurrentWinCount] = useState(0);
   
   // Session duration tracking
@@ -150,6 +151,7 @@ const LiveTracker = () => {
       try {
         const targetData = JSON.parse(localStorage.getItem('monopolyTargetProfit') || '{}');
         if (targetData.targetProfit) {
+          setTargetProfitAmount(targetData.targetProfit || 0);
           setTargetWinCount(targetData.targetWinCount || 0);
           setCurrentWinCount(targetData.currentWinCount || 0);
         }
@@ -270,6 +272,7 @@ const LiveTracker = () => {
       setHighestMartingale(safeBet);
       
       // Initialize Target Profit tracking
+      setTargetProfitAmount(safeTargetProfit);
       setTargetWinCount(calculatedTargetWinCount);
       setCurrentWinCount(0);
       
@@ -294,31 +297,37 @@ const LiveTracker = () => {
   }, [createSession]);
 
   const archiveCurrentSession = useCallback(async (customEndTime = null) => {
-    if (!currentSessionId || !sessionActive) return;
+    if (!currentSessionId) {
+      return;
+    }
 
     try {
       const endData = {
-        finalCapital: currentCapital,
-        profit: sessionProfit,
-        totalBets: totalBets,
-        successfulBets: successfulBets,
-        winRate: totalBets > 0 ? (successfulBets / totalBets * 100) : 0,
-        highestMartingale: highestMartingale
+        finalCapital: Number(currentCapital) || 0,
+        profit: Number(sessionProfit) || 0,
+        totalBets: Number(totalBets) || 0,
+        successfulBets: Number(successfulBets) || 0,
+        winRate: totalBets > 0 ? Number(((successfulBets / totalBets) * 100).toFixed(2)) : 0,
+        highestMartingale: Number(highestMartingale) || 0
       };
 
       await endSession(currentSessionId, endData);
-      setSessionActive(false);
-      setSessionEndTime(customEndTime || new Date().toISOString());
 
-      // Reload session history
-      const history = await loadSessionHistory();
-      setSessionHistory(history || []);
+      // Reload session history in background
+      setTimeout(async () => {
+        try {
+          const history = await loadSessionHistory();
+          setSessionHistory(history || []);
+        } catch (error) {
+          console.warn('Failed to reload session history:', error);
+        }
+      }, 100);
 
     } catch (error) {
       console.error('Failed to archive session:', error);
-      alert('Failed to end session');
+      throw error;
     }
-  }, [currentSessionId, sessionActive, currentCapital, sessionProfit, totalBets, successfulBets, highestMartingale, endSession, loadSessionHistory]);
+  }, [currentSessionId, currentCapital, sessionProfit, totalBets, successfulBets, highestMartingale, endSession, loadSessionHistory]);
 
   const clearCurrentSession = useCallback(() => {
     setSessionActive(false);
@@ -338,6 +347,7 @@ const LiveTracker = () => {
     setHighestMartingale(0);
     
     // Clear Target Profit tracking
+    setTargetProfitAmount(0);
     setTargetWinCount(0);
     setCurrentWinCount(0);
     localStorage.removeItem('monopolyTargetProfit');
@@ -820,15 +830,42 @@ const LiveTracker = () => {
             results, // Add results array for last 3 rolls display
             targetWinCount,
             currentWinCount,
+            targetProfitAmount,
             sessionDuration: formatDuration(sessionDuration),
             onStartSession: () => setShowSessionModal(true),
             onEndSession: () => {
-              if (window.confirm('End current session? This will archive the session to history and stop tracking.')) {
-                const endTime = new Date().toISOString();
-                setSessionEndTime(endTime);
-                archiveCurrentSession(endTime);
-                setSessionActive(false);
-                alert('✅ Session ended and archived to history!');
+              // Skip confirmation if target profit achieved
+              const isTargetAchieved = targetProfitAmount > 0 && sessionProfit >= targetProfitAmount;
+              const confirmed = isTargetAchieved ? true : window.confirm('End current session? This will archive the session to history and stop tracking.');
+              
+              if (confirmed) {
+                try {
+                  // Clear Target Profit tracking immediately
+                  setTargetProfitAmount(0);
+                  setTargetWinCount(0);
+                  setCurrentWinCount(0);
+                  
+                  try {
+                    localStorage.removeItem('monopolyTargetProfit');
+                  } catch (e) {
+                    console.warn('Could not clear localStorage:', e);
+                  }
+                  
+                  // End the session
+                  setSessionActive(false);
+                  setSessionEndTime(new Date().toISOString());
+                  
+                  // Archive the session (non-blocking)
+                  const endTime = new Date().toISOString();
+                  archiveCurrentSession(endTime).catch(error => {
+                    console.error('Failed to archive session (background):', error);
+                  });
+                  
+                  alert('✅ Session ended successfully!');
+                } catch (error) {
+                  console.error('Error ending session:', error);
+                  alert('❌ Failed to end session. Please try again.');
+                }
               }
             },
             onClearSession: () => {

@@ -23,6 +23,7 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
     results, // Add results for last 3 rolls display
     targetWinCount,
     currentWinCount,
+    targetProfitAmount,
     sessionDuration,
     onStartSession,
     onEndSession,
@@ -38,7 +39,7 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
   };
 
   // Check if target profit has been achieved
-  const isTargetAchieved = sessionActive && targetWinCount > 0 && currentWinCount >= targetWinCount;
+  const isTargetAchieved = sessionActive && targetProfitAmount > 0 && sessionProfit >= targetProfitAmount;
 
   const last3Rolls = getLast3Rolls();
 
@@ -69,9 +70,9 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
                       ? 'bg-yellow-600 hover:bg-yellow-700 jackpot-glow' 
                       : 'bg-orange-600 hover:bg-orange-700'
                   }`}
-                                  >
-                    {isTargetAchieved ? 'End Session' : '⏹️ End'}
-                  </button>
+                >
+                  {isTargetAchieved ? 'End Session' : '⏹️ End'}
+                </button>
                 {!isTargetAchieved && (
                   <button
                     onClick={onClearSession}
@@ -83,6 +84,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
               </>
             )}
           </div>
+          
+
         </div>
 
         {/* Column 2 - Last 3 Rolls & Session Stats */}
