@@ -15,30 +15,93 @@ const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [],
   const skippedCount = resultSkipInfo.filter(info => info?.isSkipped).length;
   const actualBetsCount = totalSpins - skippedCount;
   
-  // Enhanced copy function that includes skip information
+  // Simple copy function that copies just the results - ULTRA SAFE VERSION
   const handleCopyWithSkip = () => {
+    // Immediate safety check
     if (!results || results.length === 0) {
-      onCopy();
+      if (onCopy && typeof onCopy === 'function') {
+        onCopy();
+      }
       return;
     }
 
-    // Create enhanced copy text with skip indicators
-    const enhancedResults = results.map((result, index) => {
-      const skipInfo = resultSkipInfo[index];
-      if (skipInfo?.isSkipped) {
-        return `${result}(Skipped: ${skipInfo.skipReason || 'Unknown'})`;
+    try {
+      // Copy just the results without skip information - format: latest to oldest
+      // Results array has oldest first, need to reverse for latest to oldest
+      const copyText = [...results].reverse().join(', ');
+      
+      // Ultra-defensive clipboard check
+      const hasClipboardAPI = (
+        typeof window !== 'undefined' &&
+        typeof navigator !== 'undefined' &&
+        navigator &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      );
+      
+      if (hasClipboardAPI) {
+        // Use modern clipboard API
+        navigator.clipboard.writeText(copyText)
+          .then(() => {
+            console.log('Results copied to clipboard');
+            alert(`✅ Copied ${results.length} results to clipboard!`);
+          })
+          .catch((clipboardError) => {
+            console.warn('Modern clipboard API failed:', clipboardError);
+            executeManualCopy(copyText);
+          });
+      } else {
+        // Direct fallback
+        executeManualCopy(copyText);
       }
-      return result;
-    });
+      
+    } catch (mainError) {
+      console.error('Copy function failed entirely:', mainError);
+      // Final safety net - call original function
+      if (onCopy && typeof onCopy === 'function') {
+        onCopy();
+      }
+    }
+  };
 
-    // Use existing copy function but with enhanced data
-    const copyText = enhancedResults.join(',');
-    navigator.clipboard.writeText(copyText).then(() => {
-      console.log('Enhanced results copied to clipboard');
-    }).catch(() => {
-      // Fallback to original copy function
-      onCopy();
-    });
+  // Separate function for manual copy to avoid repetition
+  const executeManualCopy = (text) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      textArea.style.opacity = '0';
+      textArea.setAttribute('readonly', '');
+      textArea.setAttribute('aria-hidden', 'true');
+      textArea.tabIndex = -1;
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      // For mobile devices
+      if (textArea.setSelectionRange) {
+        textArea.setSelectionRange(0, 99999);
+      }
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        console.log('Results copied to clipboard (manual method)');
+        alert(`✅ Copied ${results.length} results to clipboard (manual method)!`);
+      } else {
+        throw new Error('execCommand failed');
+      }
+    } catch (manualError) {
+      console.error('Manual copy failed:', manualError);
+      // Final fallback - use original copy function
+      if (onCopy && typeof onCopy === 'function') {
+        onCopy();
+      }
+    }
   };
 
   // Enhanced export function that includes skip information
@@ -114,7 +177,7 @@ const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [],
           <button
             onClick={handleCopyWithSkip}
             className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-            title="Copy results with skip indicators"
+            title="Copy results (latest to oldest)"
           >
             📋 Copy
           </button>

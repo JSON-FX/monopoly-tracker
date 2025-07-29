@@ -178,6 +178,57 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
     setShowDeleteConfirm(false);
   };
 
+  // Copy session results to clipboard
+  const handleCopyResults = async (e) => {
+    e.stopPropagation(); // Prevent triggering onClick
+    
+    if (!safeResults || safeResults.length === 0) {
+      showNotification('⚠️ No results to copy', 'info');
+      return;
+    }
+
+    const copyText = safeResults.join(',');
+    
+    // Modern clipboard API with proper error handling
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(copyText);
+        showNotification(`✅ Copied ${safeResults.length} results to clipboard!`, 'success');
+        return;
+      } catch (error) {
+        console.warn('Modern clipboard API failed:', error);
+        // Continue to fallback method
+      }
+    }
+    
+    // Fallback method for older browsers or when clipboard API is not available
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = copyText;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      textArea.setAttribute('readonly', '');
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, 99999); // For mobile devices
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        showNotification(`✅ Copied ${safeResults.length} results to clipboard!`, 'success');
+      } else {
+        throw new Error('execCommand copy failed');
+      }
+    } catch (fallbackError) {
+      console.error('All copy methods failed:', fallbackError);
+      showNotification('❌ Failed to copy to clipboard. Please copy manually from console.', 'error');
+      console.log('Copy this text manually:', copyText);
+    }
+  };
+
   const formatSessionInfo = () => {
     const startDate = startTime ? new Date(startTime).toLocaleDateString() : 'Unknown';
     const profitText = safeProfit >= 0 ? `+₱${safeToFixed(safeProfit)}` : `-₱${safeToFixed(Math.abs(safeProfit))}`;
@@ -190,14 +241,23 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
         onClick={onClick}
         className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors relative group"
       >
-        {/* Delete Button (appears on hover) */}
-        <button
-          onClick={handleDeleteClick}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity text-xs flex items-center justify-center"
-          title={`Delete ${formatSessionInfo()}`}
-        >
-          ×
-        </button>
+        {/* Action Buttons (appear on hover) */}
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleCopyResults}
+            className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 text-xs flex items-center justify-center"
+            title="Copy results to clipboard"
+          >
+            📋
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 text-xs flex items-center justify-center"
+            title={`Delete ${formatSessionInfo()}`}
+          >
+            ×
+          </button>
+        </div>
 
         {/* Header Row */}
         <div className="flex justify-between items-start mb-2">

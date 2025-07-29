@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clipboard Test</title>
+</head>
+<body>
+    <h1>Clipboard API Test</h1>
+    <button onclick="testClipboard()">Test Clipboard</button>
+    <p id="result"></p>
+    
+    <script>
+        function testClipboard() {
+            const testText = "1,2,5,10,chance";
+            const result = document.getElementById('result');
+            
+            // Ultra-defensive check (same as our implementation)
+            const hasClipboardAPI = (
+                typeof window !== 'undefined' &&
+                typeof navigator !== 'undefined' &&
+                navigator &&
+                navigator.clipboard &&
+                typeof navigator.clipboard.writeText === 'function'
+            );
+            
+            if (hasClipboardAPI) {
+                navigator.clipboard.writeText(testText)
+                    .then(() => {
+                        result.innerHTML = '✅ Modern Clipboard API works!';
+                        result.style.color = 'green';
+                    })
+                    .catch(err => {
+                        result.innerHTML = '❌ Modern API failed: ' + err.message;
+                        result.style.color = 'red';
+                        tryFallback(testText, result);
+                    });
+            } else {
+                result.innerHTML = '⚠️ Modern API not available, using fallback';
+                result.style.color = 'orange';
+                tryFallback(testText, result);
+            }
+        }
+        
+        function tryFallback(text, resultEl) {
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                if (successful) {
+                    resultEl.innerHTML += '<br>✅ Fallback method works!';
+                } else {
+                    resultEl.innerHTML += '<br>❌ Fallback method failed too';
+                }
+            } catch (err) {
+                resultEl.innerHTML += '<br>❌ Fallback error: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>

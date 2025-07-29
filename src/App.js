@@ -10,6 +10,7 @@ import LoginForm from './components/Auth/LoginForm';
 import RegisterForm from './components/Auth/RegisterForm';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthWrapper from './components/Auth/AuthWrapper';
+import VersionChecker from './components/VersionChecker';
 import useSessionData from './hooks/useSessionData';
 
 import './index.css';
@@ -27,6 +28,8 @@ function App() {
         <FloatingCardProvider>
           <Router>
             <div className="App">
+              {/* Version checker - shows warning if using broken cached version */}
+              <VersionChecker />
               <Routes>
               {/* Public routes - redirect to main app if already authenticated */}
               <Route path="/login" element={

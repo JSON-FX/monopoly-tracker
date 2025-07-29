@@ -57,6 +57,70 @@ const SessionDetailModal = ({ session, onClose }) => {
     copySessionRawData(session);
   };
 
+  // Copy just the results in latest to oldest format (same as RecentResults)
+  const handleCopyResults = () => {
+    if (!safeResults || safeResults.length === 0) {
+      alert('⚠️ No results to copy');
+      return;
+    }
+
+    try {
+      // Results are already in latest to oldest format, no need to reverse
+      const copyText = safeResults.join(', ');
+      
+      // Ultra-defensive clipboard check
+      const hasClipboardAPI = (
+        typeof window !== 'undefined' &&
+        typeof navigator !== 'undefined' &&
+        navigator &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      );
+      
+      if (hasClipboardAPI) {
+        navigator.clipboard.writeText(copyText)
+          .then(() => {
+            alert(`✅ Copied ${safeResults.length} results to clipboard!`);
+          })
+          .catch(() => {
+            // Fallback method
+            executeManualCopy(copyText);
+          });
+      } else {
+        executeManualCopy(copyText);
+      }
+    } catch (error) {
+      console.error('Copy failed:', error);
+      alert('❌ Failed to copy results');
+    }
+  };
+
+  // Manual copy fallback
+  const executeManualCopy = (text) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        alert(`✅ Copied ${safeResults.length} results to clipboard (manual method)!`);
+      } else {
+        alert('❌ Failed to copy results');
+      }
+    } catch (error) {
+      console.error('Manual copy failed:', error);
+      alert('❌ Failed to copy results');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -141,7 +205,7 @@ const SessionDetailModal = ({ session, onClose }) => {
           </div>
 
           {/* Export Actions */}
-          <div className="flex gap-3 mb-6">
+          <div className="flex gap-3 mb-6 flex-wrap">
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -149,8 +213,15 @@ const SessionDetailModal = ({ session, onClose }) => {
               📊 Export CSV
             </button>
             <button
-              onClick={handleCopyRaw}
+              onClick={handleCopyResults}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Copy results in latest to oldest format"
+            >
+              📋 Copy Results
+            </button>
+            <button
+              onClick={handleCopyRaw}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
               📋 Copy Raw Data
             </button>

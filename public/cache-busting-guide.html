@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache Busting Guide - Clipboard Error Fix</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid;
+        }
+        .alert-error {
+            background: #fee;
+            border-color: #f00;
+            color: #800;
+        }
+        .alert-success {
+            background: #efe;
+            border-color: #0a0;
+            color: #080;
+        }
+        .alert-warning {
+            background: #ffa;
+            border-color: #fa0;
+            color: #840;
+        }
+        .alert-info {
+            background: #eef;
+            border-color: #00a;
+            color: #008;
+        }
+        .step {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .build-info {
+            background: #001122;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+        .browser-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .browser-tab {
+            background: #007bff;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .keyboard-shortcut {
+            background: #343a40;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Clipboard Error Fix - Cache Busting Guide</h1>
+        
+        <div class="alert alert-error">
+            <strong>🚨 Error Detected:</strong><br>
+            <code>Uncaught TypeError: can't access property "writeText", navigator.clipboard is undefined</code><br>
+            <strong>Root Cause:</strong> Your browser is loading an old cached version of the JavaScript files.
+        </div>
+
+        <div class="build-info">
+            📦 BUILD STATUS TRACKER<br>
+            ❌ Error shows: main.f2fdf164.js (OLD CACHED VERSION)<br>
+            ✅ Latest build: main.e25fc000.js (FIXED VERSION)<br>
+            🎯 Current build: <span id="currentBuild">Detecting...</span>
+        </div>
+
+        <h2>🛠️ Step-by-Step Fix Instructions</h2>
+
+        <div class="step">
+            <h3>Step 1: Hard Refresh (Most Common Fix)</h3>
+            <p>This forces the browser to download fresh files instead of using cached versions:</p>
+            <div class="browser-tabs">
+                <span class="keyboard-shortcut">Ctrl + F5</span> Windows/Linux
+                <span class="keyboard-shortcut">Cmd + Shift + R</span> Mac
+                <span class="keyboard-shortcut">Ctrl + Shift + R</span> Chrome/Firefox
+            </div>
+            <p><strong>Try this first!</strong> It fixes the issue in 90% of cases.</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Clear Browser Cache</h3>
+            <p>If hard refresh doesn't work, clear your browser cache:</p>
+            
+            <h4>Chrome:</h4>
+            <ol>
+                <li>Press <code>Ctrl+Shift+Delete</code> (or <code>Cmd+Shift+Delete</code> on Mac)</li>
+                <li>Select "All time" from the time range</li>
+                <li>Check "Cached images and files"</li>
+                <li>Click "Clear data"</li>
+            </ol>
+
+            <h4>Firefox:</h4>
+            <ol>
+                <li>Press <code>Ctrl+Shift+Delete</code></li>
+                <li>Select "Everything" from time range</li>
+                <li>Check "Cache"</li>
+                <li>Click "Clear Now"</li>
+            </ol>
+
+            <h4>Safari:</h4>
+            <ol>
+                <li>Press <code>Cmd+Option+E</code> to empty cache</li>
+                <li>Or go to Develop → Empty Caches</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Use Debug Console</h3>
+            <p>We've built a debug console to help diagnose the issue:</p>
+            
+            <h4>Option A: In-App Debug Console</h4>
+            <ol>
+                <li>Go to the Live Tracker page</li>
+                <li>Press <span class="keyboard-shortcut">Ctrl + D</span> (or <span class="keyboard-shortcut">Cmd + D</span> on Mac)</li>
+                <li>Click "📦 Check Build" to see if you're using the latest version</li>
+                <li>Click "🧪 Test Clipboard" to test the clipboard functionality</li>
+            </ol>
+
+            <h4>Option B: Standalone Debug Page</h4>
+            <p><a href="/debug-console.html" target="_blank">Open Debug Console</a> in a new tab</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Disable Cache (For Developers)</h3>
+            <p>If you're still having issues:</p>
+            <ol>
+                <li>Open Developer Tools (<code>F12</code>)</li>
+                <li>Go to Network tab</li>
+                <li>Check "Disable cache"</li>
+                <li>Refresh the page</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Incognito/Private Mode Test</h3>
+            <p>Test in a private browsing window to bypass all cache:</p>
+            <div class="browser-tabs">
+                <span class="keyboard-shortcut">Ctrl + Shift + N</span> Chrome Incognito
+                <span class="keyboard-shortcut">Ctrl + Shift + P</span> Firefox Private
+                <span class="keyboard-shortcut">Cmd + Shift + N</span> Safari Private
+            </div>
+        </div>
+
+        <div class="alert alert-success">
+            <strong>✅ How to Verify the Fix:</strong><br>
+            1. The copy button should work without errors<br>
+            2. Check browser console - no clipboard errors<br>
+            3. Debug console shows current build: <code>main.e25fc000.js</code><br>
+            4. Clipboard test passes in debug console
+        </div>
+
+        <div class="alert alert-info">
+            <strong>💡 What We Fixed:</strong><br>
+            • Added ultra-defensive clipboard API detection<br>
+            • Implemented robust fallback mechanisms<br>
+            • Enhanced error handling with try/catch blocks<br>
+            • Added comprehensive debugging tools<br>
+            • Fixed caching issues with new build hash
+        </div>
+
+        <div class="alert alert-warning">
+            <strong>⚠️ Still Having Issues?</strong><br>
+            1. Try a different browser<br>
+            2. Check if you're on HTTP vs HTTPS (HTTPS works better)<br>
+            3. Use the debug console to get detailed error information<br>
+            4. Check browser console for additional error details
+        </div>
+
+        <h2>🔧 Technical Details</h2>
+        <div class="step">
+            <h3>What Causes This Error?</h3>
+            <ul>
+                <li><strong>Browser Caching:</strong> Old JavaScript files cached by browser</li>
+                <li><strong>CDN Caching:</strong> Content delivery networks serving old versions</li>
+                <li><strong>Service Workers:</strong> May cache old application versions</li>
+                <li><strong>Build Process:</strong> Hash-based filenames ensure cache busting</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3>How We Fixed It</h3>
+            <pre><code>// OLD (BROKEN)
+navigator.clipboard.writeText(text)
+
+// NEW (FIXED)
+if (typeof navigator !== 'undefined' && 
+    navigator && 
+    navigator.clipboard && 
+    typeof navigator.clipboard.writeText === 'function') {
+  // Use modern API
+} else {
+  // Fallback method
+}</code></pre>
+        </div>
+    </div>
+
+    <script>
+        // Detect current build version
+        setTimeout(() => {
+            const scripts = Array.from(document.scripts);
+            const mainScript = scripts.find(s => s.src.includes('main.') && s.src.includes('.js'));
+            const buildEl = document.getElementById('currentBuild');
+            
+            if (mainScript) {
+                const match = mainScript.src.match(/main\.([a-f0-9]+)\.js/);
+                if (match) {
+                    const hash = match[1];
+                    if (hash === 'e25fc000') {
+                        buildEl.innerHTML = `<span style="color: #0f0;">✅ ${hash} (LATEST)</span>`;
+                    } else if (hash === 'f2fdf164') {
+                        buildEl.innerHTML = `<span style="color: #f00;">❌ ${hash} (OLD - CLEAR CACHE!)</span>`;
+                    } else {
+                        buildEl.innerHTML = `<span style="color: #fa0;">⚠️ ${hash} (UNKNOWN)</span>`;
+                    }
+                } else {
+                    buildEl.innerHTML = '<span style="color: #f00;">❌ Could not detect</span>';
+                }
+            } else {
+                buildEl.innerHTML = '<span style="color: #f00;">❌ No main script found</span>';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

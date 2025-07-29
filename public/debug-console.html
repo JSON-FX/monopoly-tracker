@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard Debug Console</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .console {
+            background: #000;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .header {
+            color: #ffff00;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        .info-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .success { color: #44ff44; }
+        .info { color: #4488ff; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #44ff44;
+        }
+        .test-button {
+            background: #ffaa00;
+            color: #000;
+        }
+        .clear-button {
+            background: #ff4444;
+            color: #fff;
+        }
+        .file-info {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid #ffff00;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .timestamp {
+            color: #888;
+            font-size: 12px;
+        }
+        pre {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">🐛 CLIPBOARD DEBUG CONSOLE 🐛</div>
+    
+    <div class="console" id="console">
+        <div class="info-section">
+            <strong class="warning">INITIALIZING DEBUG CONSOLE...</strong><br>
+            <span class="timestamp" id="initTime"></span>
+        </div>
+    </div>
+
+    <div class="file-info">
+        <strong class="info">📦 BUILD FILE DETECTION:</strong><br>
+        <span id="buildInfo">Checking...</span>
+    </div>
+
+    <div>
+        <button onclick="runClipboardTest()" class="test-button">🧪 Test Clipboard API</button>
+        <button onclick="checkBuildFiles()">📁 Check Build Files</button>
+        <button onclick="simulateClipboardError()">⚠️ Simulate Error</button>
+        <button onclick="checkNavigatorAPI()">🔍 Check Navigator API</button>
+        <button onclick="testReactComponent()">⚛️ Test React Component</button>
+        <button onclick="clearConsole()" class="clear-button">🗑️ Clear Console</button>
+    </div>
+
+    <script>
+        let consoleEl = document.getElementById('console');
+        let logCount = 0;
+
+        function log(message, type = 'info') {
+            logCount++;
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: 'info',
+                error: 'error', 
+                warning: 'warning',
+                success: 'success'
+            };
+            
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `
+                <span class="timestamp">[${timestamp}] #${logCount}</span> 
+                <span class="${colors[type]}">${message}</span>
+            `;
+            consoleEl.appendChild(logEntry);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="info-section"><strong class="success">Console cleared</strong></div>';
+            logCount = 0;
+        }
+
+        function checkBuildFiles() {
+            log('🔍 Checking for build files...', 'info');
+            
+            // Check for specific build files
+            const buildFiles = [
+                'main.f2fdf164.js', // Old file from error
+                'main.7b53706f.js', // New file from build
+                'main.f75da8fa.js'  // Another build file seen
+            ];
+            
+            buildFiles.forEach(filename => {
+                const script = document.createElement('script');
+                script.src = `/static/js/${filename}`;
+                script.onload = () => {
+                    log(`✅ Found: ${filename}`, 'success');
+                };
+                script.onerror = () => {
+                    log(`❌ Not found: ${filename}`, 'error');
+                };
+                document.head.appendChild(script);
+                setTimeout(() => document.head.removeChild(script), 1000);
+            });
+
+            // Check current script tags
+            const scripts = Array.from(document.scripts);
+            log(`📄 Current script tags: ${scripts.length}`, 'info');
+            scripts.forEach((script, i) => {
+                if (script.src.includes('main.')) {
+                    log(`🎯 Script ${i}: ${script.src}`, 'warning');
+                }
+            });
+        }
+
+        function runClipboardTest() {
+            log('🧪 Starting comprehensive clipboard test...', 'info');
+            
+            // Test 1: Basic navigator check
+            log(`Navigator exists: ${typeof navigator !== 'undefined'}`, 'info');
+            log(`Navigator object: ${!!navigator}`, 'info');
+            
+            if (navigator) {
+                log(`Navigator.clipboard exists: ${!!navigator.clipboard}`, 'info');
+                if (navigator.clipboard) {
+                    log(`Navigator.clipboard.writeText exists: ${typeof navigator.clipboard.writeText === 'function'}`, 'info');
+                    log(`Navigator.clipboard type: ${typeof navigator.clipboard}`, 'info');
+                    log(`WriteText type: ${typeof navigator.clipboard.writeText}`, 'info');
+                } else {
+                    log('❌ navigator.clipboard is undefined/null', 'error');
+                }
+            }
+
+            // Test 2: Window context check
+            log(`Window exists: ${typeof window !== 'undefined'}`, 'info');
+            log(`Document exists: ${typeof document !== 'undefined'}`, 'info');
+            log(`Is secure context: ${window.isSecureContext}`, 'info');
+            log(`Protocol: ${window.location.protocol}`, 'info');
+            log(`Host: ${window.location.host}`, 'info');
+
+            // Test 3: Ultra-defensive check (same as our code)
+            const hasClipboardAPI = (
+                typeof window !== 'undefined' &&
+                typeof navigator !== 'undefined' &&
+                navigator &&
+                navigator.clipboard &&
+                typeof navigator.clipboard.writeText === 'function'
+            );
+            
+            log(`Ultra-defensive check result: ${hasClipboardAPI}`, hasClipboardAPI ? 'success' : 'error');
+
+            // Test 4: Actual clipboard test
+            if (hasClipboardAPI) {
+                navigator.clipboard.writeText('DEBUG_TEST_' + Date.now())
+                    .then(() => log('✅ Clipboard write successful!', 'success'))
+                    .catch(err => log(`❌ Clipboard write failed: ${err.message}`, 'error'));
+            } else {
+                log('⚠️ Using fallback method...', 'warning');
+                testFallbackMethod();
+            }
+        }
+
+        function testFallbackMethod() {
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = 'FALLBACK_TEST_' + Date.now();
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                log(`Fallback method result: ${successful}`, successful ? 'success' : 'error');
+            } catch (err) {
+                log(`Fallback method error: ${err.message}`, 'error');
+            }
+        }
+
+        function simulateClipboardError() {
+            log('⚠️ Simulating the exact error from RecentResultsWithSkip.jsx...', 'warning');
+            
+            try {
+                // This should trigger the same error if clipboard is undefined
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    log('✅ No error - clipboard API is available', 'success');
+                } else {
+                    // Try to access writeText on undefined clipboard (simulating the error)
+                    try {
+                        navigator.clipboard.writeText('test');
+                    } catch (e) {
+                        log(`🎯 REPRODUCED ERROR: ${e.message}`, 'error');
+                        log(`Error type: ${e.name}`, 'error');
+                        log(`Stack trace: ${e.stack}`, 'error');
+                    }
+                }
+            } catch (mainError) {
+                log(`Main error caught: ${mainError.message}`, 'error');
+            }
+        }
+
+        function checkNavigatorAPI() {
+            log('🔍 Deep navigator API inspection...', 'info');
+            
+            if (typeof navigator === 'undefined') {
+                log('❌ Navigator is completely undefined', 'error');
+                return;
+            }
+
+            log('📊 Navigator properties:', 'info');
+            const navProps = Object.getOwnPropertyNames(navigator);
+            log(`Navigator has ${navProps.length} properties`, 'info');
+            
+            const clipboardRelated = navProps.filter(prop => 
+                prop.toLowerCase().includes('clip') || 
+                prop.toLowerCase().includes('copy') ||
+                prop.toLowerCase().includes('paste')
+            );
+            
+            log(`Clipboard-related properties: ${clipboardRelated.join(', ') || 'None found'}`, 'info');
+            
+            // Check specific properties
+            log(`navigator.clipboard: ${navigator.clipboard}`, 'info');
+            log(`navigator.clipboard descriptor: ${JSON.stringify(Object.getOwnPropertyDescriptor(navigator, 'clipboard'))}`, 'info');
+            
+            if (navigator.clipboard) {
+                const clipboardProps = Object.getOwnPropertyNames(navigator.clipboard);
+                log(`Clipboard object properties: ${clipboardProps.join(', ')}`, 'info');
+            }
+        }
+
+        function testReactComponent() {
+            log('⚛️ Testing React component simulation...', 'info');
+            
+            // Simulate the exact conditions in RecentResultsWithSkip
+            const mockResults = ['1', '2', '5', '10', 'chance'];
+            const mockResultSkipInfo = [{}, {}, {}, {}, {}];
+            
+            log('🎭 Simulating handleCopyWithSkip function...', 'info');
+            
+            try {
+                // Simulate the exact function logic
+                if (!mockResults || mockResults.length === 0) {
+                    log('Early return - no results', 'info');
+                    return;
+                }
+
+                const enhancedResults = mockResults.map((result, index) => {
+                    const skipInfo = mockResultSkipInfo[index];
+                    if (skipInfo?.isSkipped) {
+                        return `${result}(Skipped: ${skipInfo.skipReason || 'Unknown'})`;
+                    }
+                    return result;
+                });
+
+                const copyText = enhancedResults.join(',');
+                log(`Generated copy text: ${copyText}`, 'info');
+                
+                // Ultra-defensive check (our current implementation)
+                const hasClipboardAPI = (
+                    typeof window !== 'undefined' &&
+                    typeof navigator !== 'undefined' &&
+                    navigator &&
+                    navigator.clipboard &&
+                    typeof navigator.clipboard.writeText === 'function'
+                );
+                
+                if (hasClipboardAPI) {
+                    log('✅ Component would use modern clipboard API', 'success');
+                    navigator.clipboard.writeText(copyText)
+                        .then(() => log('✅ Component clipboard test successful', 'success'))
+                        .catch(err => log(`❌ Component clipboard test failed: ${err.message}`, 'error'));
+                } else {
+                    log('⚠️ Component would use fallback method', 'warning');
+                    testFallbackMethod();
+                }
+                
+            } catch (componentError) {
+                log(`🚨 Component simulation error: ${componentError.message}`, 'error');
+                log(`Stack: ${componentError.stack}`, 'error');
+            }
+        }
+
+        // Initialize
+        document.getElementById('initTime').textContent = new Date().toLocaleString();
+        log('🚀 Debug console initialized', 'success');
+        log('📍 Current URL: ' + window.location.href, 'info');
+        log('🌐 User Agent: ' + navigator.userAgent, 'info');
+        
+        // Auto-check build files on load
+        setTimeout(checkBuildFiles, 1000);
+        
+        // Monitor for the specific error
+        window.addEventListener('error', (event) => {
+            if (event.message.includes('writeText') || event.message.includes('clipboard')) {
+                log(`🚨 CLIPBOARD ERROR DETECTED: ${event.message}`, 'error');
+                log(`File: ${event.filename}:${event.lineno}:${event.colno}`, 'error');
+                log(`Stack: ${event.error?.stack}`, 'error');
+            }
+        });
+
+        // Check for unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason?.message?.includes('clipboard') || event.reason?.message?.includes('writeText')) {
+                log(`🚨 UNHANDLED CLIPBOARD PROMISE REJECTION: ${event.reason.message}`, 'error');
+            }
+        });
+
+        // Update build info
+        setTimeout(() => {
+            const buildInfoEl = document.getElementById('buildInfo');
+            const scripts = Array.from(document.scripts).filter(s => s.src.includes('main.'));
+            if (scripts.length > 0) {
+                const currentBuild = scripts[0].src.match(/main\.([a-f0-9]+)\.js/);
+                if (currentBuild) {
+                    buildInfoEl.innerHTML = `
+                        <span class="success">✅ Current build: main.${currentBuild[1]}.js</span><br>
+                        <span class="info">📅 Build expected: main.7b53706f.js</span><br>
+                        <span class="${currentBuild[1] === '7b53706f' ? 'success' : 'error'}">
+                            ${currentBuild[1] === '7b53706f' ? '✅ Using latest build!' : '❌ Using old cached build!'}
+                        </span>
+                    `;
+                }
+            } else {
+                buildInfoEl.innerHTML = '<span class="error">❌ No main build file detected</span>';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

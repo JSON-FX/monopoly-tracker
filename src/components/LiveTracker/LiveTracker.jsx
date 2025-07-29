@@ -8,9 +8,69 @@ import ChanceModal from '../MonopolyTracker/components/ChanceModal';
 import { useChanceLogic } from '../MonopolyTracker/hooks/useChanceLogic';
 import { useHotZone } from '../../hooks/useHotZone';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
+import DebugConsole from '../DebugConsole';
 
 
 const LiveTracker = () => {
+  // Utility function for showing notifications
+  const showNotification = useCallback((message, type = 'success') => {
+    const colors = {
+      success: '#10B981',
+      error: '#EF4444', 
+      warning: '#F59E0B',
+      info: '#3B82F6'
+    };
+    
+    const notification = document.createElement('div');
+    notification.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${colors[type]};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+      ">
+        ${message}
+      </div>
+    `;
+    
+    // Add animation styles
+    if (!document.getElementById('notification-styles')) {
+      const style = document.createElement('style');
+      style.id = 'notification-styles';
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        notification.style.transition = 'all 0.3s ease-out';
+        notification.style.transform = 'translateX(100%)';
+        notification.style.opacity = '0';
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 300);
+      }
+    }, 3000);
+  }, []);
+
   // Core state
   const [results, setResults] = useState([]);
   const [resultTimestamps, setResultTimestamps] = useState([]);
@@ -70,6 +130,22 @@ const LiveTracker = () => {
   
   // Floating card toggle from context
   const { isVisible: isFloatingCardVisible } = useFloatingCard();
+
+  // Debug console state
+  const [showDebugConsole, setShowDebugConsole] = useState(false);
+
+  // Debug console hotkey (Ctrl+D or Cmd+D)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+        event.preventDefault();
+        setShowDebugConsole(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Dual-condition betting control: Hot Zone + Last 3 Rolls
   const getDualConditionBettingStatus = useCallback(() => {
@@ -699,30 +775,53 @@ const LiveTracker = () => {
 
   const copyToClipboard = useCallback(async () => {
     if (results.length === 0) {
-      alert('No results to copy');
+      showNotification('⚠️ No results to copy', 'warning');
       return;
     }
 
     const textToCopy = results.join(',');
     
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      alert(`✅ Copied ${results.length} results to clipboard!\nFormat: ${textToCopy.substring(0, 50)}${textToCopy.length > 50 ? '...' : ''}`);
-    } catch (err) {
-      const textArea = document.createElement('textarea');
-      textArea.value = textToCopy;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert(`✅ Copied ${results.length} results to clipboard!\nFormat: ${textToCopy.substring(0, 50)}${textToCopy.length > 50 ? '...' : ''}`);
+    // Check if modern clipboard API is available
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        showNotification(`✅ Copied ${results.length} results to clipboard!`, 'success');
+        return;
+      } catch (err) {
+        console.warn('Clipboard API failed, falling back to execCommand:', err);
+      }
     }
-  }, [results]);
+    
+    // Fallback method for older browsers or when clipboard API is not available
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showNotification(`✅ Copied ${results.length} results to clipboard!`, 'success');
+      } else {
+        throw new Error('execCommand copy failed');
+      }
+    } catch (fallbackErr) {
+      console.error('Failed to copy to clipboard:', fallbackErr);
+      showNotification('❌ Failed to copy to clipboard. Please copy manually from console.', 'error');
+      console.log('Copy this text manually:', textToCopy);
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  }, [results, showNotification]);
 
   // Handle undo
   const handleUndoWithAlert = useCallback(() => {
     if (results.length === 0) {
-      alert('No results to undo');
+      showNotification('⚠️ No results to undo', 'warning');
       return;
     }
 
@@ -731,8 +830,8 @@ const LiveTracker = () => {
     setResults(newResults);
     setResultTimestamps(newTimestamps);
     
-    alert(`✅ Undid last result`);
-  }, [results, resultTimestamps]);
+    showNotification('✅ Undid last result', 'success');
+  }, [results, resultTimestamps, showNotification]);
 
   // Chance modal handlers
   const handleChanceModalMultiplier = async (multiplier) => {
@@ -1063,6 +1162,23 @@ const LiveTracker = () => {
         pendingMultiplier={chancePendingMultiplier}
         originalBet={chanceOriginalBet}
       />
+
+      {/* Debug Console - Press Ctrl+D or Cmd+D to toggle */}
+      <DebugConsole 
+        isVisible={showDebugConsole}
+        onClose={() => setShowDebugConsole(false)}
+      />
+
+      {/* Debug Console Toggle Button (visible only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <button
+          onClick={() => setShowDebugConsole(true)}
+          className="fixed bottom-4 right-4 bg-red-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-red-700"
+          title="Open Debug Console (or press Ctrl+D)"
+        >
+          🐛 DEBUG
+        </button>
+      )}
     </div>
   );
 };

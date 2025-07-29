@@ -16,10 +16,14 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Clear npm and build cache
+RUN npm cache clean --force
+
 # Stage 2: Serve the application using Nginx
 FROM nginx:stable-alpine
 
-# Copy the built application from the build stage
+# Remove any existing files and copy the built application from the build stage
+RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build /app/build /usr/share/nginx/html
 
 # Remove the default Nginx configuration
