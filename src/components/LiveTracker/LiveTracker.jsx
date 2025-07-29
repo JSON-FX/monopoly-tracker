@@ -33,9 +33,11 @@ const LiveTracker = () => {
   const [highestMartingale, setHighestMartingale] = useState(0);
   
   // Target Profit tracking
-  const [targetProfit, setTargetProfit] = useState(0);
   const [targetWinCount, setTargetWinCount] = useState(0);
   const [currentWinCount, setCurrentWinCount] = useState(0);
+  
+  // Session duration tracking
+  const [sessionDuration, setSessionDuration] = useState(0);
   
   // Additional state for chance logic
   const [lastBetAmount, setLastBetAmount] = useState(0);
@@ -148,7 +150,6 @@ const LiveTracker = () => {
       try {
         const targetData = JSON.parse(localStorage.getItem('monopolyTargetProfit') || '{}');
         if (targetData.targetProfit) {
-          setTargetProfit(targetData.targetProfit);
           setTargetWinCount(targetData.targetWinCount || 0);
           setCurrentWinCount(targetData.currentWinCount || 0);
         }
@@ -160,6 +161,45 @@ const LiveTracker = () => {
     loadHistory();
     loadTargetProfitData();
   }, [loadSessionHistory]);
+
+  // Session duration timer
+  useEffect(() => {
+    let interval;
+    
+    if (sessionActive && sessionStartTime) {
+      interval = setInterval(() => {
+        const now = new Date();
+        const startTime = new Date(sessionStartTime);
+        const diffMs = now - startTime;
+        setSessionDuration(Math.floor(diffMs / 1000)); // Duration in seconds
+      }, 1000); // Update every second
+    } else {
+      setSessionDuration(0);
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [sessionActive, sessionStartTime]);
+
+  // Format session duration for display
+  const formatDuration = (seconds) => {
+    if (seconds === 0) return '0s';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
 
   // Update current bet amount based on consecutive losses
   useEffect(() => {
@@ -230,9 +270,11 @@ const LiveTracker = () => {
       setHighestMartingale(safeBet);
       
       // Initialize Target Profit tracking
-      setTargetProfit(safeTargetProfit);
       setTargetWinCount(calculatedTargetWinCount);
       setCurrentWinCount(0);
+      
+      // Reset session duration
+      setSessionDuration(0);
       
       // Store Target Profit in localStorage
       if (safeTargetProfit > 0) {
@@ -296,10 +338,12 @@ const LiveTracker = () => {
     setHighestMartingale(0);
     
     // Clear Target Profit tracking
-    setTargetProfit(0);
     setTargetWinCount(0);
     setCurrentWinCount(0);
     localStorage.removeItem('monopolyTargetProfit');
+    
+    // Clear session duration
+    setSessionDuration(0);
   }, []);
 
   // Handle result addition
@@ -429,7 +473,7 @@ const LiveTracker = () => {
         console.error('Failed to save result to database:', error);
       }
     }
-  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit]);
+  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
 
   // Export functions
   const exportToCSV = useCallback(() => {
@@ -776,6 +820,7 @@ const LiveTracker = () => {
             results, // Add results array for last 3 rolls display
             targetWinCount,
             currentWinCount,
+            sessionDuration: formatDuration(sessionDuration),
             onStartSession: () => setShowSessionModal(true),
             onEndSession: () => {
               if (window.confirm('End current session? This will archive the session to history and stop tracking.')) {

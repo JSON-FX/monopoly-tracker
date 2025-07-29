@@ -23,6 +23,7 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
     results, // Add results for last 3 rolls display
     targetWinCount,
     currentWinCount,
+    sessionDuration,
     onStartSession,
     onEndSession,
     onClearSession
@@ -140,11 +141,19 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
             </div>
           </div>
 
-          {/* Next Bet */}
-          <div className="bg-blue-50 border border-blue-300 p-1 rounded text-center">
-            <div className="text-xs text-gray-600">Next Bet</div>
-            <div className="text-sm font-bold text-blue-600">
-              ₱{currentBetAmount.toFixed(0)}
+          {/* Next Bet and Duration on same row */}
+          <div className="grid grid-cols-2 gap-1">
+            <div className="bg-blue-50 border border-blue-300 p-1 rounded text-center">
+              <div className="text-xs text-gray-600">Next Bet</div>
+              <div className="text-sm font-bold text-blue-600">
+                ₱{currentBetAmount.toFixed(0)}
+              </div>
+            </div>
+            <div className="bg-purple-50 border border-purple-300 p-1 rounded text-center">
+              <div className="text-xs text-gray-600">Duration</div>
+              <div className="text-sm font-bold text-purple-600">
+                {sessionActive ? sessionDuration : '0s'}
+              </div>
             </div>
           </div>
 
