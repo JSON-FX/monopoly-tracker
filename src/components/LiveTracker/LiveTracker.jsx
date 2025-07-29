@@ -3,17 +3,19 @@ import useSessionData from '../../hooks/useSessionData';
 import { calculateMartingaleBet } from '../MonopolyTracker/utils/calculations';
 import { getBettingRecommendation, analyzeOnesPattern } from '../MonopolyTracker/utils/patterns';
 import ResultEntry from '../MonopolyTracker/components/ResultEntry';
-import RecentResults from '../MonopolyTracker/components/RecentResults';
-import HotZoneStatusCard from '../MonopolyTracker/components/HotZoneStatusCard';
+import RecentResultsWithSkip from '../MonopolyTracker/components/RecentResults/RecentResultsWithSkip';
 import ChanceModal from '../MonopolyTracker/components/ChanceModal';
 import { useChanceLogic } from '../MonopolyTracker/hooks/useChanceLogic';
 import { useHotZone } from '../../hooks/useHotZone';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
+import { useBettingControl } from '../../hooks/useBettingControl';
+import { SkipBetToggle } from '../BettingControls';
 
 const LiveTracker = () => {
   // Core state
   const [results, setResults] = useState([]);
   const [resultTimestamps, setResultTimestamps] = useState([]);
+  const [resultSkipInfo, setResultSkipInfo] = useState([]); // Track skip information for each result
   const [totalBets, setTotalBets] = useState(0);
   const [successfulBets, setSuccessfulBets] = useState(0);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -44,6 +46,17 @@ const LiveTracker = () => {
   const [lastBetAmount, setLastBetAmount] = useState(0);
   const [lastBetWon, setLastBetWon] = useState(false);
   
+  // Betting control hooks
+  const {
+    skipBetMode,
+    skipBetReason,
+    autoSkipEnabled,
+    toggleSkipBetMode,
+    toggleAutoSkip,
+    handleAutoSkipSuggestions,
+    shouldSkipBet
+  } = useBettingControl();
+
   // Database integration hooks
   const {
     createSession,
@@ -59,8 +72,7 @@ const LiveTracker = () => {
     error: hotZoneError,
     isAnalysisActive,
     getCurrentStatus,
-    getMinSpinsRequired,
-    clearError: clearHotZoneError
+    getMinSpinsRequired
   } = useHotZone();
 
   // Current session tracking
@@ -222,11 +234,20 @@ const LiveTracker = () => {
   // Auto-analyze hot zones when results change
   useEffect(() => {
     if (results.length > 0) {
-      analyzeShiftStatus(results).catch(err => {
+      console.log('🔥 Hot Zone Debug - Sending results:', results);
+      console.log('🔥 Hot Zone Debug - Results length:', results.length);
+      analyzeShiftStatus(results).then(response => {
+        console.log('🔥 Hot Zone Debug - API Response:', response);
+        // Handle auto-skip suggestions if enabled
+        if (response && response.autoSkipSuggestions) {
+          handleAutoSkipSuggestions(response.autoSkipSuggestions);
+        }
+      }).catch(err => {
+        console.error('🔥 Hot Zone Debug - Error:', err);
         console.warn('Hot zone analysis failed:', err.message);
       });
     }
-  }, [results, analyzeShiftStatus]);
+  }, [results, analyzeShiftStatus, handleAutoSkipSuggestions]);
 
   // Get betting recommendation
   const recommendation = getBettingRecommendation(results, consecutiveLosses, baseBet);
@@ -449,10 +470,18 @@ const LiveTracker = () => {
         initializeChance(currentBetAmount);
       } else {
         // Add result to local state
+        const timestamp = new Date().toISOString();
         const newResults = [...results, result];
-        const newTimestamps = [...resultTimestamps, new Date().toISOString()];
+        const newTimestamps = [...resultTimestamps, timestamp];
+        const newSkipInfo = [...resultSkipInfo, {
+          isSkipped: false, // Chance results are never skipped in this context
+          skipReason: null,
+          timestamp: timestamp
+        }];
+        
         setResults(newResults);
         setResultTimestamps(newTimestamps);
+        setResultSkipInfo(newSkipInfo);
         
         // Add to database if session active
         if (sessionActive && currentSessionId) {
@@ -477,10 +506,18 @@ const LiveTracker = () => {
       const spinResult = processNextSpin(result);
       if (spinResult.processed) {
         // Add result and handle multiplier
+        const timestamp = new Date().toISOString();
         const newResults = [...results, result];
-        const newTimestamps = [...resultTimestamps, new Date().toISOString()];
+        const newTimestamps = [...resultTimestamps, timestamp];
+        const newSkipInfo = [...resultSkipInfo, {
+          isSkipped: false, // Multiplier results are never skipped
+          skipReason: null,
+          timestamp: timestamp
+        }];
+        
         setResults(newResults);
         setResultTimestamps(newTimestamps);
+        setResultSkipInfo(newSkipInfo);
         
         if (sessionActive && currentSessionId) {
           try {
@@ -513,8 +550,19 @@ const LiveTracker = () => {
     let newCapital = currentCapital;
     let won = false;
     let actualBetAmount = 0;
+    let isSkipped = false;
 
-    if (sessionActive && recommendation.shouldBet && currentBetAmount <= currentCapital) {
+    // Check if betting should be skipped
+    const skipCheck = shouldSkipBet();
+    if (skipCheck.shouldSkip && sessionActive) {
+      // Skip bet mode: Record result but no P/L or martingale changes
+      actualBetAmount = 0;
+      won = false;
+      isSkipped = true;
+      // Keep all values the same - no capital change, no martingale progression
+      newCapital = currentCapital;
+    } else if (sessionActive && recommendation.shouldBet && currentBetAmount <= currentCapital) {
+      // Normal betting mode
       actualBetAmount = currentBetAmount;
       if (isWinningNumber) {
         newCapital = currentCapital + actualBetAmount;
@@ -547,11 +595,19 @@ const LiveTracker = () => {
       setSessionProfit(newCapital - startingCapital);
     }
     
-    // Add result to local state
+    // Add result to local state with skip information
+    const timestamp = new Date().toISOString();
     const newResults = [...results, result];
-    const newTimestamps = [...resultTimestamps, new Date().toISOString()];
+    const newTimestamps = [...resultTimestamps, timestamp];
+    const newSkipInfo = [...resultSkipInfo, {
+      isSkipped: isSkipped,
+      skipReason: isSkipped ? skipCheck.reason : null,
+      timestamp: timestamp
+    }];
+    
     setResults(newResults);
     setResultTimestamps(newTimestamps);
+    setResultSkipInfo(newSkipInfo);
     
     // Save to database if session active
     if (sessionActive && currentSessionId) {
@@ -561,13 +617,15 @@ const LiveTracker = () => {
           betAmount: actualBetAmount,
           won: won,
           capitalAfter: newCapital,
-          martingaleLevel: consecutiveLosses
+          martingaleLevel: consecutiveLosses,
+          isSkipped: isSkipped,
+          skipReason: isSkipped ? skipCheck.reason : null
         });
       } catch (error) {
         console.error('Failed to save result to database:', error);
       }
     }
-  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
+  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, resultSkipInfo, shouldSkipBet, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
 
   // Export functions
   const exportToCSV = useCallback(() => {
@@ -848,34 +906,31 @@ const LiveTracker = () => {
           </div>
         )}
 
-        {/* Recent Results & Hot Zone Detection - Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Recent Results - Left Column */}
-          <div className="min-h-0">
-            <RecentResults 
-              results={results} 
-              resultTimestamps={resultTimestamps}
-              onCopy={copyToClipboard}
-              onExport={exportToCSV}
-            />
-          </div>
-
-          {/* Hot Zone Status Card - Right Column */}
-          <div className="min-h-0">
-            <HotZoneStatusCard
-              isActive={isAnalysisActive}
-              status={getCurrentStatus()?.status || 'Cold'}
-              dominantZone={getCurrentStatus()?.dominantZone || 'A'}
-              score={getCurrentStatus()?.score || 0}
-              trendDirection={getCurrentStatus()?.trendDirection || 'stable'}
-              totalSpins={getCurrentStatus()?.totalSpins || results.length}
-              requiredSpins={getMinSpinsRequired()}
-              loading={hotZoneLoading}
-              error={hotZoneError}
-              onRetry={clearHotZoneError}
-            />
-          </div>
+        {/* Recent Results - Full Width */}
+        <div className="mb-6">
+          <RecentResultsWithSkip 
+            results={results} 
+            resultTimestamps={resultTimestamps}
+            resultSkipInfo={resultSkipInfo}
+            onCopy={copyToClipboard}
+            onExport={exportToCSV}
+          />
         </div>
+
+        {/* Skip Bet Toggle */}
+        {sessionActive && (
+          <div className="mb-6">
+            <SkipBetToggle
+              skipBetMode={skipBetMode}
+              skipBetReason={skipBetReason}
+              autoSkipEnabled={autoSkipEnabled}
+              onToggle={toggleSkipBetMode}
+              onToggleAuto={toggleAutoSkip}
+              disabled={!sessionActive}
+              size="medium"
+            />
+          </div>
+        )}
 
         {/* Pending Multiplier Indicator */}
         {chanceIsPending && (
@@ -923,7 +978,17 @@ const LiveTracker = () => {
             sessionDuration: formatDuration(sessionDuration),
             onStartSession: () => setShowSessionModal(true),
             onEndSession: handleEndSession,
-            onClearSession: handleClearSession
+            onClearSession: handleClearSession,
+            // Hot zone data
+            hotZone: {
+              isActive: isAnalysisActive,
+              status: getCurrentStatus()?.status || 'Cold',
+              dominantZone: getCurrentStatus()?.dominantZone || 'A',
+              totalSpins: getCurrentStatus()?.totalSpins || results.length,
+              requiredSpins: getMinSpinsRequired(),
+              loading: hotZoneLoading,
+              error: hotZoneError
+            }
           }}
           hideControlsWhenInactive={!isFloatingCardVisible}
         />

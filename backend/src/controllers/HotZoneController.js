@@ -48,8 +48,14 @@ class HotZoneController {
       });
     }
 
+    // Debug logging
+    console.log('🔥 Backend Debug - Received history:', history);
+    console.log('🔥 Backend Debug - History length:', history.length);
+    console.log('🔥 Backend Debug - Sample items:', history.slice(0, 5));
+
     // Analyze the spin history
     const analysis = this.hotZoneService.analyzeShiftStatus(history);
+    console.log('🔥 Backend Debug - Analysis result:', analysis);
 
     // Return appropriate response based on analysis
     if (!analysis.isActive) {

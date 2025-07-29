@@ -14,7 +14,6 @@ import { filterOutChanceResults } from '../../utils/patterns';
 const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInactive = false }) => {
   const {
     consecutiveLosses,
-    recommendation,
     sessionActive,
     currentBetAmount,
     currentCapital,
@@ -28,7 +27,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInact
     sessionDuration,
     onStartSession,
     onEndSession,
-    onClearSession
+    onClearSession,
+    hotZone
   } = sessionData;
 
   // Get last 3 non-chance results (latest to oldest for display)
@@ -43,6 +43,77 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInact
   const isTargetAchieved = sessionActive && targetProfitAmount > 0 && sessionProfit >= targetProfitAmount;
 
   const last3Rolls = getLast3Rolls();
+
+  // Get simplified hot zone recommendation
+  const getHotZoneRecommendation = () => {
+    if (!hotZone || !hotZone.isActive) {
+      return {
+        text: 'ANALYZING...',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-300',
+        icon: '📊'
+      };
+    }
+
+    if (hotZone.loading) {
+      return {
+        text: 'LOADING...',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-300',
+        icon: '⏳'
+      };
+    }
+
+    if (hotZone.error) {
+      return {
+        text: 'ERROR',
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-300',
+        icon: '❌'
+      };
+    }
+
+    switch (hotZone.status) {
+      case 'Hot':
+        return {
+          text: 'BET',
+          color: 'text-green-600',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-300',
+          icon: '🔥'
+        };
+      case 'Warming':
+        return {
+          text: 'BET WITH CAUTION',
+          color: 'text-yellow-600',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-300',
+          icon: '📈'
+        };
+      case 'Cooling':
+        return {
+          text: 'DO NOT BET',
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-50',
+          borderColor: 'border-orange-300',
+          icon: '📉'
+        };
+      case 'Cold':
+      default:
+        return {
+          text: 'DO NOT BET',
+          color: 'text-red-600',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-300',
+          icon: '❄️'
+        };
+    }
+  };
+
+  const hotZoneRec = getHotZoneRecommendation();
 
     // If hiding controls when inactive and session is active, show minimal session controls only
   if (hideControlsWhenInactive && sessionActive) {
@@ -140,20 +211,22 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInact
           </div>
         </div>
 
-        {/* Column 3 - Martingale Info & Basic Stats */}
+        {/* Column 3 - Hot Zone & Martingale Info */}
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-center">Martingale Info</h3>
+          <h3 className="text-sm font-semibold text-center">Hot Zone Status</h3>
           
-          {/* Status */}
-          <div className={`p-1 rounded text-center border ${
-            recommendation?.shouldBet ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'
-          }`}>
-            <div className="text-xs text-gray-600">Status</div>
-            <div className={`text-sm font-bold ${
-              recommendation?.shouldBet ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {recommendation?.shouldBet ? '✅ BET' : '❌ SKIP'}
+          {/* Hot Zone Status */}
+          <div className={`p-1 rounded text-center border ${hotZoneRec.bgColor} ${hotZoneRec.borderColor}`}>
+            <div className="text-xs text-gray-600">Zone {hotZone?.dominantZone || 'A'}</div>
+            <div className={`text-xs font-bold ${hotZoneRec.color} flex items-center justify-center gap-1`}>
+              <span>{hotZoneRec.icon}</span>
+              <span>{hotZoneRec.text}</span>
             </div>
+            {hotZone?.isActive && (
+              <div className="text-xs text-gray-500 mt-1">
+                {hotZone.totalSpins || 0} spins
+              </div>
+            )}
           </div>
 
           {/* Next Bet and Duration on same row */}
