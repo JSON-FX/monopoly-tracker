@@ -1,15 +1,9 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 
-// Dynamic API URL detection based on current domain
+// API URL should be relative to the root.
 const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    const currentDomain = window.location.hostname;
-    if (currentDomain === 'monopolytracker.local') {
-      return 'http://monopolytracker.local:5001/api';
-    }
-  }
-  return process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+  return '/api';
 };
 
 // Create axios instance with base configuration
