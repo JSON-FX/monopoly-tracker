@@ -680,11 +680,15 @@ const LiveTracker = () => {
       // Save chance result to database
       if (sessionActive && currentSessionId) {
         try {
+          // Calculate correct capital using the profit/loss from handleCashPrize
+          // This avoids double-counting the cash prize amount
+          const capitalAfterCashPrize = currentCapital + result.amount;
+          
           await addResultToDb(currentSessionId, {
             resultValue: 'chance',
             betAmount: chanceIsPending ? chanceOriginalBet : 0,
             won: true, // Cash prize is an immediate win
-            capitalAfter: currentCapital,
+            capitalAfter: capitalAfterCashPrize,
             martingaleLevel: consecutiveLosses,
             chanceEvent: {
               eventType: 'CASH_PRIZE',

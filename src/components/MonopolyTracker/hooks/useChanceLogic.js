@@ -69,15 +69,14 @@ export const useChanceLogic = (sessionState, updateSessionState) => {
       }
 
       // Update session state
+      // Cash prizes don't count as bets - they're bonus amounts added directly to P/L
       updateSessionState({
         currentCapital: newCapital,
         sessionProfit: newCapital - startingCapital,
-        consecutiveLosses: 0, // Reset martingale on any win
-        currentBetAmount: baseBet,
-        successfulBets: prev => prev + 1,
-        totalBets: prev => prev + 1,
+        consecutiveLosses: 0, // Reset martingale on any win (cash prizes are always positive)
+        currentBetAmount: baseBet, // Reset to base bet after any chance event
         lastBetAmount: currentChanceState.isPending ? currentChanceState.originalBetAmount : 0,
-        lastBetWon: true
+        lastBetWon: true // This affects martingale reset only
       });
 
       // Update result object
