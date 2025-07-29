@@ -8,8 +8,7 @@ import ChanceModal from '../MonopolyTracker/components/ChanceModal';
 import { useChanceLogic } from '../MonopolyTracker/hooks/useChanceLogic';
 import { useHotZone } from '../../hooks/useHotZone';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
-import { useBettingControl } from '../../hooks/useBettingControl';
-import { SkipBetToggle } from '../BettingControls';
+
 
 const LiveTracker = () => {
   // Core state
@@ -46,16 +45,7 @@ const LiveTracker = () => {
   const [lastBetAmount, setLastBetAmount] = useState(0);
   const [lastBetWon, setLastBetWon] = useState(false);
   
-  // Betting control hooks
-  const {
-    skipBetMode,
-    skipBetReason,
-    autoSkipEnabled,
-    toggleSkipBetMode,
-    toggleAutoSkip,
-    handleAutoSkipSuggestions,
-    shouldSkipBet
-  } = useBettingControl();
+
 
   // Database integration hooks
   const {
@@ -80,6 +70,61 @@ const LiveTracker = () => {
   
   // Floating card toggle from context
   const { isVisible: isFloatingCardVisible } = useFloatingCard();
+
+  // Dual-condition betting control: Hot Zone + Last 3 Rolls
+  const getDualConditionBettingStatus = useCallback(() => {
+    // Get hot zone status
+    const hotZoneStatus = getCurrentStatus();
+    if (!hotZoneStatus || !isAnalysisActive) {
+      return {
+        shouldBet: false,
+        reason: 'Hot Zone: Analyzing...',
+        hotZoneCondition: 'Analyzing',
+        last3Condition: 'Analyzing'
+      };
+    }
+
+    // Analyze last 3 rolls
+    const getLast3RollsCondition = () => {
+      if (results.length < 3) {
+        return 'Insufficient Data';
+      }
+
+      // Get last 3 non-chance results
+      const nonChanceResults = results.filter(r => r !== 'chance');
+      if (nonChanceResults.length < 3) {
+        return 'Insufficient Data';
+      }
+
+      const last3 = nonChanceResults.slice(-3);
+      const onesCount = last3.filter(result => result === '1').length;
+      
+      // 1 or more "1"s in last 3 = Bet, otherwise Do Not Bet
+      return onesCount >= 1 ? 'Bet' : 'Do Not Bet';
+    };
+
+    // Convert hot zone status to betting condition
+    const hotZoneCondition = (hotZoneStatus.status === 'Hot' || hotZoneStatus.status === 'Warming') 
+      ? 'Bet' : 'Do Not Bet';
+    
+    const last3Condition = getLast3RollsCondition();
+    
+    // Both conditions must be "Bet" for betting to be enabled
+    const shouldBet = (hotZoneCondition === 'Bet' && last3Condition === 'Bet');
+    
+    const reason = shouldBet 
+      ? `✅ Betting Enabled: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`
+      : `🛑 Betting Skipped: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`;
+
+    return {
+      shouldBet,
+      reason,
+      hotZoneCondition,
+      last3Condition
+    };
+  }, [getCurrentStatus, isAnalysisActive, results]);
+
+
 
   // Create session state object for chance logic hook
   const sessionState = {
@@ -234,20 +279,13 @@ const LiveTracker = () => {
   // Auto-analyze hot zones when results change
   useEffect(() => {
     if (results.length > 0) {
-      console.log('🔥 Hot Zone Debug - Sending results:', results);
-      console.log('🔥 Hot Zone Debug - Results length:', results.length);
       analyzeShiftStatus(results).then(response => {
-        console.log('🔥 Hot Zone Debug - API Response:', response);
-        // Handle auto-skip suggestions if enabled
-        if (response && response.autoSkipSuggestions) {
-          handleAutoSkipSuggestions(response.autoSkipSuggestions);
-        }
+        // Hot zone analysis complete - auto skip mode is now handled in ResultEntry component
       }).catch(err => {
-        console.error('🔥 Hot Zone Debug - Error:', err);
         console.warn('Hot zone analysis failed:', err.message);
       });
     }
-  }, [results, analyzeShiftStatus, handleAutoSkipSuggestions]);
+  }, [results, analyzeShiftStatus]); // Only depend on results and analyzeShiftStatus
 
   // Get betting recommendation
   const recommendation = getBettingRecommendation(results, consecutiveLosses, baseBet);
@@ -552,10 +590,10 @@ const LiveTracker = () => {
     let actualBetAmount = 0;
     let isSkipped = false;
 
-    // Check if betting should be skipped
-    const skipCheck = shouldSkipBet();
-    if (skipCheck.shouldSkip && sessionActive) {
-      // Skip bet mode: Record result but no P/L or martingale changes
+    // Check dual-condition betting status
+    const bettingStatus = getDualConditionBettingStatus();
+    if (!bettingStatus.shouldBet && sessionActive) {
+      // Betting skipped: Record result but no P/L or martingale changes
       actualBetAmount = 0;
       won = false;
       isSkipped = true;
@@ -601,7 +639,7 @@ const LiveTracker = () => {
     const newTimestamps = [...resultTimestamps, timestamp];
     const newSkipInfo = [...resultSkipInfo, {
       isSkipped: isSkipped,
-      skipReason: isSkipped ? skipCheck.reason : null,
+      skipReason: isSkipped ? bettingStatus.reason : null,
       timestamp: timestamp
     }];
     
@@ -619,13 +657,13 @@ const LiveTracker = () => {
           capitalAfter: newCapital,
           martingaleLevel: consecutiveLosses,
           isSkipped: isSkipped,
-          skipReason: isSkipped ? skipCheck.reason : null
+          skipReason: isSkipped ? bettingStatus.reason : null
         });
       } catch (error) {
         console.error('Failed to save result to database:', error);
       }
     }
-  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, resultSkipInfo, shouldSkipBet, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
+  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, resultSkipInfo, getDualConditionBettingStatus, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
 
   // Export functions
   const exportToCSV = useCallback(() => {
@@ -875,10 +913,14 @@ const LiveTracker = () => {
 
 
         {/* Prominent Martingale Display */}
-        {sessionActive && (
-          <div className={`bg-white rounded-lg shadow-lg p-6 border-4 mb-6 ${
-            recommendation.shouldBet ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
-          }`}>
+        {sessionActive && (() => {
+          const bettingStatus = getDualConditionBettingStatus();
+          return (
+            <div className={`bg-white rounded-lg shadow-lg p-6 border-4 mb-6 ${
+              bettingStatus.shouldBet 
+                ? 'border-green-500 bg-green-50 animate-pulse shadow-green-400/50 shadow-xl' 
+                : 'border-red-500 bg-red-50 animate-pulse shadow-red-400/50 shadow-xl'
+            }`}>
             <div className="flex justify-between items-center">
               <div className="text-center">
                 <div className="text-sm font-semibold text-gray-700 mb-1">MARTINGALE BET</div>
@@ -890,21 +932,49 @@ const LiveTracker = () => {
                 </div>
               </div>
               <div className="text-center">
-                <div className={`text-3xl font-bold ${
-                  recommendation.shouldBet ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {recommendation.shouldBet ? '✅ BET' : '❌ SKIP'}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {recommendation.shouldBet ? 'Place bet on "1"' : 'Do not bet'}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {recommendation.confidence}% confidence
-                </div>
+                {(() => {
+                  const bettingStatus = getDualConditionBettingStatus();
+                  return (
+                    <>
+                      <div className={`text-3xl font-bold ${
+                        bettingStatus.shouldBet ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {bettingStatus.shouldBet ? '✅ BET' : '🛑 SKIP'}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {bettingStatus.shouldBet ? 'Place bet on "1"' : 'Do not bet'}
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span>HZ: {bettingStatus.hotZoneCondition}</span>
+                          {(() => {
+                            const currentHotZoneStatus = getCurrentStatus();
+                            return currentHotZoneStatus && (
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium">Zone {currentHotZoneStatus.dominantZone}</span>
+                                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                  currentHotZoneStatus.status === 'Hot' ? 'bg-red-500 text-white' :
+                                  currentHotZoneStatus.status === 'Warming' ? 'bg-orange-500 text-white' :
+                                  currentHotZoneStatus.status === 'Cooling' ? 'bg-blue-500 text-white' :
+                                  currentHotZoneStatus.status === 'Cold' ? 'bg-gray-500 text-white' :
+                                  'bg-gray-300 text-gray-700'
+                                }`}>
+                                  {currentHotZoneStatus.status}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div>L3: {bettingStatus.last3Condition}</div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Recent Results - Full Width */}
         <div className="mb-6">
@@ -917,20 +987,7 @@ const LiveTracker = () => {
           />
         </div>
 
-        {/* Skip Bet Toggle */}
-        {sessionActive && (
-          <div className="mb-6">
-            <SkipBetToggle
-              skipBetMode={skipBetMode}
-              skipBetReason={skipBetReason}
-              autoSkipEnabled={autoSkipEnabled}
-              onToggle={toggleSkipBetMode}
-              onToggleAuto={toggleAutoSkip}
-              disabled={!sessionActive}
-              size="medium"
-            />
-          </div>
-        )}
+
 
         {/* Pending Multiplier Indicator */}
         {chanceIsPending && (
@@ -988,7 +1045,9 @@ const LiveTracker = () => {
               requiredSpins: getMinSpinsRequired(),
               loading: hotZoneLoading,
               error: hotZoneError
-            }
+            },
+            // Dual-condition betting status
+            bettingStatus: getDualConditionBettingStatus()
           }}
           hideControlsWhenInactive={!isFloatingCardVisible}
         />

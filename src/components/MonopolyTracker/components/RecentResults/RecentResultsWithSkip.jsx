@@ -26,14 +26,12 @@ const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [],
     const enhancedResults = results.map((result, index) => {
       const skipInfo = resultSkipInfo[index];
       if (skipInfo?.isSkipped) {
-        return `${result}✕(${skipInfo.skipReason || 'Skipped'})`;
+        return `${result}(Skipped: ${skipInfo.skipReason || 'Unknown'})`;
       }
       return result;
     });
 
     // Use existing copy function but with enhanced data
-    const originalResults = [...results];
-    // Temporarily replace results for copy
     const copyText = enhancedResults.join(',');
     navigator.clipboard.writeText(copyText).then(() => {
       console.log('Enhanced results copied to clipboard');

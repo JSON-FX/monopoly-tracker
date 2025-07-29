@@ -10,8 +10,8 @@ import React from 'react';
 const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
   const getResultStyle = (result, isSkipped) => {
     if (isSkipped) {
-      // Skipped results get a distinctive style
-      return 'bg-orange-100 text-orange-800 border-2 border-orange-600 opacity-75';
+      // Skipped results get grayed out style
+      return 'bg-gray-200 text-gray-500 border-2 border-gray-400 opacity-60';
     }
 
     switch (result) {
@@ -35,11 +35,7 @@ const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
   };
 
   const getDisplayText = (result, isSkipped) => {
-    if (isSkipped) {
-      // Show the result with a skip indicator
-      const baseText = getBaseDisplayText(result);
-      return `${baseText}✕`;
-    }
+    // Just show the base text, styling will indicate if skipped
     return getBaseDisplayText(result);
   };
 
@@ -92,13 +88,6 @@ const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
               title={getTooltipText(result, actualIndex, isSkipped, skipReason)}
             >
               {getDisplayText(result, isSkipped)}
-              
-              {/* Skip indicator overlay */}
-              {isSkipped && (
-                <div className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  ✕
-                </div>
-              )}
             </div>
           );
         })}
@@ -106,10 +95,10 @@ const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
       
       {/* Legend */}
       {resultSkipInfo.some(info => info?.isSkipped) && (
-        <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="text-sm text-orange-800 font-semibold mb-1">Legend:</div>
-          <div className="text-xs text-orange-700">
-            ✕ = Skipped bet (result recorded but no P/L impact or martingale progression)
+        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="text-sm text-gray-800 font-semibold mb-1">Legend:</div>
+          <div className="text-xs text-gray-700">
+            Grayed out = Skipped bet (result recorded but no P/L impact or martingale progression)
           </div>
         </div>
       )}

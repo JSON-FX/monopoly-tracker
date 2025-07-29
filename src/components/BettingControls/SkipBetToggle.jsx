@@ -12,9 +12,11 @@ const SkipBetToggle = ({
   onToggle,
   onToggleAuto,
   disabled = false,
-  showReason = true,
+  showReason = false,
   showAutoToggle = true,
-  size = 'medium'
+  size = 'medium',
+  glowStyle = 'normal',
+  minimal = false
 }) => {
   
   const getSizeClasses = () => {
@@ -44,9 +46,23 @@ const SkipBetToggle = ({
   };
 
   const getToggleStyles = () => {
+    // Base glow classes based on hot zone status
+    const getGlowClasses = () => {
+      switch (glowStyle) {
+        case 'red':
+          return 'animate-pulse shadow-red-400/50 shadow-lg border-red-400';
+        case 'green':
+          return 'animate-pulse shadow-green-400/50 shadow-lg border-green-400';
+        default:
+          return '';
+      }
+    };
+
+    const glowClasses = getGlowClasses();
+
     if (disabled) {
       return {
-        container: 'bg-gray-100 border-gray-300 opacity-50',
+        container: `bg-gray-100 border-gray-300 opacity-50 ${glowClasses}`,
         button: 'bg-gray-400 text-gray-600 cursor-not-allowed',
         text: 'text-gray-500'
       };
@@ -54,14 +70,14 @@ const SkipBetToggle = ({
 
     if (skipBetMode) {
       return {
-        container: 'bg-red-50 border-red-300',
+        container: `bg-red-50 border-red-300 ${glowClasses}`,
         button: 'bg-red-600 hover:bg-red-700 text-white shadow-lg',
         text: 'text-red-700'
       };
     }
 
     return {
-      container: 'bg-green-50 border-green-300',
+      container: `bg-green-50 border-green-300 ${glowClasses}`,
       button: 'bg-green-600 hover:bg-green-700 text-white shadow-lg',
       text: 'text-green-700'
     };
@@ -104,6 +120,34 @@ const SkipBetToggle = ({
 
   const sizeClasses = getSizeClasses();
   const toggleStyles = getToggleStyles();
+
+  // Minimal version for floating card - just buttons in one row
+  if (minimal) {
+    return (
+      <div className="flex items-center gap-2">
+        {/* Main Skip/Resume Button */}
+        <button
+          onClick={() => onToggle()}
+          disabled={disabled}
+          className={`
+            px-3 py-1.5 text-sm font-medium rounded-lg 
+            transition-all duration-200 
+            transform hover:scale-105 active:scale-95
+            focus:outline-none focus:ring-2 focus:ring-opacity-50
+            ${skipBetMode 
+              ? `bg-red-600 hover:bg-red-700 text-white focus:ring-red-300 ${glowStyle === 'red' ? 'animate-pulse shadow-red-400/50 shadow-lg' : ''}` 
+              : `bg-green-600 hover:bg-green-700 text-white focus:ring-green-300 ${glowStyle === 'green' ? 'animate-pulse shadow-green-400/50 shadow-lg' : ''}`
+            }
+            ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+          `}
+        >
+          {skipBetMode ? '▶️ Resume' : '⏸️ Skip'}
+        </button>
+
+
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white rounded-lg border-2 ${toggleStyles.container} ${sizeClasses.container} transition-all duration-200`}>
