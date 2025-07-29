@@ -32,6 +32,11 @@ const LiveTracker = () => {
   const [sessionHistory, setSessionHistory] = useState([]);
   const [highestMartingale, setHighestMartingale] = useState(0);
   
+  // Target Profit tracking
+  const [targetProfit, setTargetProfit] = useState(0);
+  const [targetWinCount, setTargetWinCount] = useState(0);
+  const [currentWinCount, setCurrentWinCount] = useState(0);
+  
   // Additional state for chance logic
   const [lastBetAmount, setLastBetAmount] = useState(0);
   const [lastBetWon, setLastBetWon] = useState(false);
@@ -137,7 +142,23 @@ const LiveTracker = () => {
         setDataLoaded(true);
       }
     };
+    
+    // Load Target Profit data from localStorage
+    const loadTargetProfitData = () => {
+      try {
+        const targetData = JSON.parse(localStorage.getItem('monopolyTargetProfit') || '{}');
+        if (targetData.targetProfit) {
+          setTargetProfit(targetData.targetProfit);
+          setTargetWinCount(targetData.targetWinCount || 0);
+          setCurrentWinCount(targetData.currentWinCount || 0);
+        }
+      } catch (error) {
+        console.error('Failed to load target profit data:', error);
+      }
+    };
+    
     loadHistory();
+    loadTargetProfitData();
   }, [loadSessionHistory]);
 
   // Update current bet amount based on consecutive losses
@@ -171,14 +192,18 @@ const LiveTracker = () => {
   const analysis = analyzeOnesPattern(results); // Pattern analysis for future features
 
   // Session management functions
-  const initializeSession = useCallback(async (capital, bet) => {
+  const initializeSession = useCallback(async (capital, bet, targetProfitAmount = 0) => {
     try {
       const safeCapital = parseFloat(capital) || 0;
       const safeBet = parseFloat(bet) || 0;
+      const safeTargetProfit = parseFloat(targetProfitAmount) || 0;
       
       if (safeCapital <= 0 || safeBet <= 0) {
         throw new Error('Invalid capital or bet amount');
       }
+      
+      // Calculate target win count if target profit is set
+      const calculatedTargetWinCount = safeTargetProfit > 0 ? Math.ceil(safeTargetProfit / safeBet) : 0;
       
       const sessionData = {
         startingCapital: safeCapital,
@@ -203,6 +228,22 @@ const LiveTracker = () => {
       setConsecutiveLosses(0);
       setSessionProfit(0);
       setHighestMartingale(safeBet);
+      
+      // Initialize Target Profit tracking
+      setTargetProfit(safeTargetProfit);
+      setTargetWinCount(calculatedTargetWinCount);
+      setCurrentWinCount(0);
+      
+      // Store Target Profit in localStorage
+      if (safeTargetProfit > 0) {
+        localStorage.setItem('monopolyTargetProfit', JSON.stringify({
+          targetProfit: safeTargetProfit,
+          targetWinCount: calculatedTargetWinCount,
+          currentWinCount: 0
+        }));
+      } else {
+        localStorage.removeItem('monopolyTargetProfit');
+      }
       
     } catch (error) {
       console.error('Failed to initialize session:', error);
@@ -253,6 +294,12 @@ const LiveTracker = () => {
     setTotalBets(0);
     setSuccessfulBets(0);
     setHighestMartingale(0);
+    
+    // Clear Target Profit tracking
+    setTargetProfit(0);
+    setTargetWinCount(0);
+    setCurrentWinCount(0);
+    localStorage.removeItem('monopolyTargetProfit');
   }, []);
 
   // Handle result addition
@@ -337,6 +384,19 @@ const LiveTracker = () => {
         setSuccessfulBets(successfulBets + 1);
         setConsecutiveLosses(0);
         setCurrentBetAmount(baseBet);
+        
+        // Track Target Wins
+        if (targetWinCount > 0) {
+          const newCurrentWinCount = currentWinCount + 1;
+          setCurrentWinCount(newCurrentWinCount);
+          
+          // Update localStorage
+          const targetData = JSON.parse(localStorage.getItem('monopolyTargetProfit') || '{}');
+          if (targetData.targetProfit) {
+            targetData.currentWinCount = newCurrentWinCount;
+            localStorage.setItem('monopolyTargetProfit', JSON.stringify(targetData));
+          }
+        }
       } else {
         newCapital = currentCapital - actualBetAmount;
         const newConsecutiveLosses = consecutiveLosses + 1;
@@ -538,6 +598,7 @@ const LiveTracker = () => {
                   const formData = new FormData(e.target);
                   const startCapital = parseFloat(formData.get('startingCapital'));
                   const baseBetAmount = parseFloat(formData.get('baseBet'));
+                  const targetProfitAmount = parseFloat(formData.get('targetProfit')) || 0;
                   
                   if (startCapital <= 0 || baseBetAmount <= 0) {
                     alert('Please enter valid amounts greater than 0');
@@ -549,7 +610,7 @@ const LiveTracker = () => {
                     return;
                   }
                   
-                  initializeSession(startCapital, baseBetAmount);
+                  initializeSession(startCapital, baseBetAmount, targetProfitAmount);
                   setShowSessionModal(false);
                 }}
               >
@@ -566,7 +627,7 @@ const LiveTracker = () => {
                     required
                   />
                 </div>
-                <div className="mb-6">
+                <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Base Bet Amount (₱)
                   </label>
@@ -577,6 +638,18 @@ const LiveTracker = () => {
                     placeholder="e.g., 10"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Target Profit (₱) <span className="text-gray-500 text-xs">- Optional</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="targetProfit"
+                    step="0.01"
+                    placeholder="e.g., 500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="flex gap-3">
@@ -701,6 +774,8 @@ const LiveTracker = () => {
             totalBets,
             successfulBets,
             results, // Add results array for last 3 rolls display
+            targetWinCount,
+            currentWinCount,
             onStartSession: () => setShowSessionModal(true),
             onEndSession: () => {
               if (window.confirm('End current session? This will archive the session to history and stop tracking.')) {

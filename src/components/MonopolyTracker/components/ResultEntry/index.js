@@ -21,6 +21,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
     totalBets,
     successfulBets,
     results, // Add results for last 3 rolls display
+    targetWinCount,
+    currentWinCount,
     onStartSession,
     onEndSession,
     onClearSession
@@ -146,8 +148,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
             </div>
           </div>
 
-          {/* Martingale Level and Losses on same row */}
-          <div className="grid grid-cols-2 gap-1">
+          {/* Martingale Level, Losses, and Target Win in same row */}
+          <div className="grid grid-cols-3 gap-1">
             <div className="bg-gray-50 border border-gray-300 p-1 rounded text-center">
               <div className="text-xs text-gray-600">Martingale</div>
               <div className="text-sm font-bold text-gray-600">
@@ -162,6 +164,16 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData }) => {
                 'text-green-600'
               }`}>
                 {consecutiveLosses}/7
+              </div>
+            </div>
+            <div className="bg-gray-50 border border-gray-300 p-1 rounded text-center">
+              <div className="text-xs text-gray-600">Target Win</div>
+              <div className={`text-sm font-bold ${
+                targetWinCount > 0 ? (
+                  currentWinCount >= targetWinCount ? 'text-green-600' : 'text-blue-600'
+                ) : 'text-gray-400'
+              }`}>
+                {targetWinCount > 0 ? `${currentWinCount}/${targetWinCount}` : 'N/A'}
               </div>
             </div>
           </div>
