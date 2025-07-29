@@ -224,7 +224,7 @@ const SessionHistoryItem = ({ session, onClick, onDelete }) => {
         {/* Stats Row */}
         <div className="grid grid-cols-4 gap-2 text-sm">
           <div className="text-center p-2 bg-blue-50 rounded">
-            <div className="font-semibold text-blue-800">{safeTotalBets}</div>
+            <div className="font-semibold text-blue-800">{safeResults.length}</div>
             <div className="text-blue-600">Spins</div>
           </div>
           <div className="text-center p-2 bg-purple-50 rounded">

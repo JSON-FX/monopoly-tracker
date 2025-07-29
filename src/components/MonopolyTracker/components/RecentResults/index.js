@@ -10,11 +10,16 @@ import ResultsGrid from './ResultsGrid';
  * @returns {JSX.Element} RecentResults component
  */
 const RecentResults = ({ results, resultTimestamps, onCopy, onExport }) => {
+  const totalSpins = results ? results.length : 0;
+  
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 h-full">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">
           Recent Results <span className="text-sm font-normal text-gray-500">(Latest → Oldest)</span>
+          <span className="ml-2 bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded">
+            {totalSpins} spins
+          </span>
         </h2>
         <div className="flex gap-2">
           <button

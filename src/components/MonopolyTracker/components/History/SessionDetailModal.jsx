@@ -123,7 +123,7 @@ const SessionDetailModal = ({ session, onClose }) => {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-800">{safeTotalBets}</div>
+              <div className="text-2xl font-bold text-blue-800">{safeResults.length}</div>
               <div className="text-sm text-blue-600">Total Spins</div>
             </div>
             <div className="bg-green-50 rounded-lg p-4 text-center">
