@@ -30,7 +30,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInact
     onEndSession,
     onClearSession,
     hotZone,
-    bettingStatus
+    bettingStatus,
+    conditionStrategy
   } = sessionData;
 
   // Get last 3 non-chance results (latest to oldest for display)
@@ -168,7 +169,8 @@ const ResultEntry = ({ onResultClick, onUndo, sessionData, hideControlsWhenInact
               <span>{bettingStatus.shouldBet ? 'BET ENABLED' : 'BET SKIPPED'}</span>
             </div>
             <div className="text-xs text-gray-500 mt-1 leading-tight">
-              HZ: {bettingStatus?.hotZoneCondition || 'N/A'} | L3: {bettingStatus?.last3Condition || 'N/A'}
+              {conditionStrategy === 'hz_l3' && `HZ: ${bettingStatus?.hotZoneCondition || 'N/A'} | `}
+              L3: {bettingStatus?.last3Condition || 'N/A'}
             </div>
           </div>
 

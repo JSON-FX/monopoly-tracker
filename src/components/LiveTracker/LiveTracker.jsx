@@ -9,6 +9,7 @@ import { useChanceLogic } from '../MonopolyTracker/hooks/useChanceLogic';
 import { useHotZone } from '../../hooks/useHotZone';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
 import DebugConsole from '../DebugConsole';
+import ModeSelector from '../BettingControls/ModeSelector';
 
 
 const LiveTracker = () => {
@@ -92,6 +93,8 @@ const LiveTracker = () => {
   const [sessionEndTime, setSessionEndTime] = useState(null);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [highestMartingale, setHighestMartingale] = useState(0);
+  const [bettingStrategy, setBettingStrategy] = useState('martingale');
+  const [conditionStrategy, setConditionStrategy] = useState('hz_l3');
   
   // Target Profit tracking
   const [targetWinCount, setTargetWinCount] = useState(0);
@@ -147,20 +150,9 @@ const LiveTracker = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Dual-condition betting control: Hot Zone + Last 3 Rolls
+  // Dual-condition betting control: Hot Zone + Last 3 Rolls or L3 Only
   const getDualConditionBettingStatus = useCallback(() => {
-    // Get hot zone status
-    const hotZoneStatus = getCurrentStatus();
-    if (!hotZoneStatus || !isAnalysisActive) {
-      return {
-        shouldBet: false,
-        reason: 'Hot Zone: Analyzing...',
-        hotZoneCondition: 'Analyzing',
-        last3Condition: 'Analyzing'
-      };
-    }
-
-    // Analyze last 3 rolls
+    // Analyze last 3 rolls - always needed for both strategies
     const getLast3RollsCondition = () => {
       if (results.length < 3) {
         return 'Insufficient Data';
@@ -179,11 +171,37 @@ const LiveTracker = () => {
       return onesCount >= 1 ? 'Bet' : 'Do Not Bet';
     };
 
+    const last3Condition = getLast3RollsCondition();
+
+    // Handle L3 Only strategy (for Flat Betting mode)
+    if (bettingStrategy === 'flat') {
+      const shouldBet = (last3Condition === 'Bet');
+      const reason = shouldBet 
+        ? `✅ Betting Enabled: L3 Only (${last3Condition})`
+        : `🛑 Betting Skipped: L3 Only (${last3Condition})`;
+      
+      return {
+        shouldBet,
+        reason,
+        hotZoneCondition: 'N/A (L3 Only)',
+        last3Condition
+      };
+    }
+
+    // Handle HZ + L3 dual condition strategy (for Martingale mode)
+    const hotZoneStatus = getCurrentStatus();
+    if (!hotZoneStatus || !isAnalysisActive) {
+      return {
+        shouldBet: false,
+        reason: 'Hot Zone: Analyzing...',
+        hotZoneCondition: 'Analyzing',
+        last3Condition
+      };
+    }
+
     // Convert hot zone status to betting condition
     const hotZoneCondition = (hotZoneStatus.status === 'Hot' || hotZoneStatus.status === 'Warming') 
       ? 'Bet' : 'Do Not Bet';
-    
-    const last3Condition = getLast3RollsCondition();
     
     // Both conditions must be "Bet" for betting to be enabled
     const shouldBet = (hotZoneCondition === 'Bet' && last3Condition === 'Bet');
@@ -198,7 +216,7 @@ const LiveTracker = () => {
       hotZoneCondition,
       last3Condition
     };
-  }, [getCurrentStatus, isAnalysisActive, results]);
+  }, [getCurrentStatus, isAnalysisActive, results, bettingStrategy]);
 
 
 
@@ -336,14 +354,25 @@ const LiveTracker = () => {
     }
   };
 
-  // Update current bet amount based on consecutive losses
+  // Calculate bet amount based on selected strategy
+  const calculateBetAmount = useCallback((baseBetAmount, losses) => {
+    switch (bettingStrategy) {
+      case 'flat':
+        return baseBetAmount; // Always bet the same amount
+      case 'martingale':
+      default:
+        return calculateMartingaleBet(baseBetAmount, losses);
+    }
+  }, [bettingStrategy]);
+
+  // Update current bet amount based on consecutive losses and strategy
   useEffect(() => {
     if (sessionActive && baseBet > 0) {
-      const newBetAmount = calculateMartingaleBet(baseBet, consecutiveLosses);
+      const newBetAmount = calculateBetAmount(baseBet, consecutiveLosses);
       setCurrentBetAmount(newBetAmount);
       setHighestMartingale(Math.max(highestMartingale, newBetAmount));
     }
-  }, [consecutiveLosses, baseBet, sessionActive, highestMartingale]);
+  }, [consecutiveLosses, baseBet, sessionActive, highestMartingale, calculateBetAmount]);
 
   // Auto-show session modal on initial load if no history exists
   useEffect(() => {
@@ -929,6 +958,19 @@ const LiveTracker = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
               <h2 className="text-2xl font-bold mb-4">🎯 Start New Session</h2>
+
+              <ModeSelector
+                mode={bettingStrategy}
+                onModeChange={(newMode) => {
+                  setBettingStrategy(newMode);
+                  if (newMode === 'flat') {
+                    setConditionStrategy('l3_only');
+                  } else {
+                    setConditionStrategy('hz_l3');
+                  }
+                }}
+              />
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1012,8 +1054,11 @@ const LiveTracker = () => {
 
 
         {/* Prominent Martingale Display */}
+        {/* Prominent Betting Display */}
         {sessionActive && (() => {
           const bettingStatus = getDualConditionBettingStatus();
+          const strategyName = bettingStrategy === 'martingale' ? 'Martingale' : 'Flat Betting';
+
           return (
             <div className={`bg-white rounded-lg shadow-lg p-6 border-4 mb-6 ${
               bettingStatus.shouldBet 
@@ -1022,12 +1067,12 @@ const LiveTracker = () => {
             }`}>
             <div className="flex justify-between items-center">
               <div className="text-center">
-                <div className="text-sm font-semibold text-gray-700 mb-1">MARTINGALE BET</div>
+                <div className="text-sm font-semibold text-gray-700 mb-1">{strategyName.toUpperCase()} BET</div>
                 <div className="text-4xl font-bold text-blue-600">
                   ₱{currentBetAmount.toFixed(2)}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {consecutiveLosses === 0 ? 'Base bet' : `Martingale x${Math.pow(2, consecutiveLosses)}`}
+                  {bettingStrategy === 'martingale' && consecutiveLosses > 0 ? `Martingale x${Math.pow(2, consecutiveLosses)}` : 'Base bet'}
                 </div>
               </div>
               <div className="text-center">
@@ -1076,7 +1121,9 @@ const LiveTracker = () => {
         })()}
 
         {/* Recent Results - Full Width */}
-        <div className="mb-6">
+        <div className={`mb-6 ${
+          bettingStrategy === 'martingale' && results.length < 20 ? 'opacity-50 pointer-events-none' : ''
+        }`}>
           <RecentResultsWithSkip 
             results={results} 
             resultTimestamps={resultTimestamps}
@@ -1146,7 +1193,8 @@ const LiveTracker = () => {
               error: hotZoneError
             },
             // Dual-condition betting status
-            bettingStatus: getDualConditionBettingStatus()
+            bettingStatus: getDualConditionBettingStatus(),
+            conditionStrategy: conditionStrategy
           }}
           hideControlsWhenInactive={!isFloatingCardVisible}
         />
