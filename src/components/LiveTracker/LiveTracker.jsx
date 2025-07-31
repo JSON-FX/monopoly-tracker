@@ -114,6 +114,8 @@ const LiveTracker = () => {
   const {
     createSession,
     endSession,
+    getActiveSession,
+    updateSession,
     addResult: addResultToDb,
     loadSessionHistory
   } = useSessionData();
@@ -280,7 +282,7 @@ const LiveTracker = () => {
     originalBetAmount: chanceOriginalBet
   } = useChanceLogic(sessionState, updateSessionState);
 
-  // Load session history on mount
+  // Load session history and restore active session on mount
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -294,6 +296,69 @@ const LiveTracker = () => {
         console.error('LiveTracker - Failed to load session history:', error);
         setSessionHistory([]);
         setDataLoaded(true);
+      }
+    };
+
+    // Restore active session if exists
+    const restoreActiveSession = async () => {
+      try {
+        console.log('LiveTracker - Checking for active session...');
+        const activeSession = await getActiveSession();
+        
+        if (activeSession) {
+          console.log('LiveTracker - Active session found, restoring:', activeSession);
+          
+          // Check if session has exceeded 30-minute inactivity timeout
+          const now = new Date();
+          const lastActivity = activeSession.lastActivity ? new Date(activeSession.lastActivity) : new Date(activeSession.startTime);
+          const inactiveMinutes = (now - lastActivity) / (1000 * 60);
+          
+          if (inactiveMinutes > 30) {
+            console.log('LiveTracker - Session exceeded 30-minute timeout, ending session');
+            try {
+              await endSession(activeSession.id, {
+                endTime: now.toISOString(),
+                reason: 'inactivity_timeout'
+              });
+              showNotification('Previous session ended due to 30-minute inactivity timeout', 'warning');
+            } catch (error) {
+              console.error('Failed to end expired session:', error);
+            }
+            return;
+          }
+          
+          // Restore session state - convert string values from database to numbers
+          setCurrentSessionId(activeSession.id);
+          setSessionActive(true);
+          setStartingCapital(parseFloat(activeSession.startingCapital) || 0);
+          setCurrentCapital(parseFloat(activeSession.currentCapital) || 0);
+          setBaseBet(parseFloat(activeSession.baseBet) || 0);
+          setCurrentBetAmount(parseFloat(activeSession.currentBetAmount || activeSession.baseBet) || 0);
+          setSessionStartTime(activeSession.startTime);
+          setSessionEndTime(null);
+          setResults(activeSession.results || []);
+          setResultTimestamps(activeSession.resultTimestamps || []);
+          setTotalBets(parseInt(activeSession.totalBets) || 0);
+          setSuccessfulBets(parseInt(activeSession.successfulBets) || 0);
+          setConsecutiveLosses(parseInt(activeSession.consecutiveLosses) || 0);
+          setSessionProfit(parseFloat(activeSession.profit) || (parseFloat(activeSession.currentCapital) - parseFloat(activeSession.startingCapital)));
+          setHighestMartingale(parseFloat(activeSession.highestMartingale || activeSession.baseBet) || 0);
+          
+          // Restore target profit data if exists
+          if (activeSession.targetProfitAmount) {
+            setTargetProfitAmount(parseFloat(activeSession.targetProfitAmount) || 0);
+            setTargetWinCount(parseInt(activeSession.targetWinCount) || 0);
+            setCurrentWinCount(parseInt(activeSession.currentWinCount) || 0);
+          }
+          
+          showNotification('Previous session restored successfully!', 'success');
+          console.log('LiveTracker - Session restoration completed');
+        } else {
+          console.log('LiveTracker - No active session found');
+        }
+      } catch (error) {
+        console.error('LiveTracker - Failed to restore active session:', error);
+        // Don't show user error - just continue without restoration
       }
     };
     
@@ -311,9 +376,15 @@ const LiveTracker = () => {
       }
     };
     
-    loadHistory();
-    loadTargetProfitData();
-  }, [loadSessionHistory]);
+    // Execute all initialization tasks
+    const initializeComponent = async () => {
+      await loadHistory();
+      await restoreActiveSession();
+      loadTargetProfitData();
+    };
+    
+    initializeComponent();
+  }, [loadSessionHistory, getActiveSession, endSession, showNotification]);
 
   // Session duration timer
   useEffect(() => {
@@ -391,6 +462,40 @@ const LiveTracker = () => {
       });
     }
   }, [results, analyzeShiftStatus]); // Only depend on results and analyzeShiftStatus
+
+  // Update session state in database for persistence
+  const persistSessionState = useCallback(async () => {
+    if (sessionActive && currentSessionId) {
+      try {
+        await updateSession(currentSessionId, {
+          currentCapital,
+          currentBetAmount,
+          consecutiveLosses,
+          totalBets,
+          successfulBets,
+          highestMartingale,
+          profit: sessionProfit,
+          targetProfitAmount,
+          targetWinCount,
+          currentWinCount,
+          lastActivity: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Failed to update session state:', error);
+        // Don't throw - this is not critical for gameplay
+      }
+    }
+  }, [sessionActive, currentSessionId, updateSession, currentCapital, currentBetAmount, consecutiveLosses, totalBets, successfulBets, highestMartingale, sessionProfit, targetProfitAmount, targetWinCount, currentWinCount]);
+
+  // Update session state in database when key values change (for persistence)
+  useEffect(() => {
+    // Debounce the update to avoid too many database calls
+    const timeoutId = setTimeout(() => {
+      persistSessionState();
+    }, 1000); // Update after 1 second of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [currentCapital, consecutiveLosses, totalBets, successfulBets, sessionProfit, targetWinCount, currentWinCount, persistSessionState]);
 
   // Get betting recommendation
   const recommendation = getBettingRecommendation(results, consecutiveLosses, baseBet);
@@ -528,6 +633,20 @@ const LiveTracker = () => {
     console.log('🚀 clearCurrentSession: All session data cleared successfully');
   }, []);
 
+  // Update last activity timestamp for inactivity timeout tracking
+  const updateLastActivity = useCallback(async () => {
+    if (sessionActive && currentSessionId) {
+      try {
+        await updateSession(currentSessionId, {
+          lastActivity: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Failed to update last activity:', error);
+        // Don't throw - this is not critical for gameplay
+      }
+    }
+  }, [sessionActive, currentSessionId, updateSession]);
+
   // Memoized session control functions (defined after clearCurrentSession)
   const handleEndSession = useCallback(() => {
     console.log('🚀 LiveTracker.handleEndSession called');
@@ -636,6 +755,8 @@ const LiveTracker = () => {
               capitalAfter: currentCapital,
               martingaleLevel: consecutiveLosses
             });
+            // Update last activity timestamp
+            await updateLastActivity();
           } catch (error) {
             console.error('Failed to save result to database:', error);
           }
@@ -672,6 +793,8 @@ const LiveTracker = () => {
               martingaleLevel: consecutiveLosses,
               isMultiplier: true
             });
+            // Update last activity timestamp
+            await updateLastActivity();
             
             if (spinResult.won) {
               setCurrentCapital(currentCapital + spinResult.amount);
@@ -764,11 +887,13 @@ const LiveTracker = () => {
           isSkipped: isSkipped,
           skipReason: isSkipped ? bettingStatus.reason : null
         });
+        // Update last activity timestamp
+        await updateLastActivity();
       } catch (error) {
         console.error('Failed to save result to database:', error);
       }
     }
-  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, resultSkipInfo, getDualConditionBettingStatus, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount]);
+  }, [sessionActive, recommendation, currentBetAmount, currentCapital, chanceIsPending, initializeChance, processNextSpin, results, resultTimestamps, resultSkipInfo, getDualConditionBettingStatus, currentSessionId, addResultToDb, consecutiveLosses, baseBet, successfulBets, totalBets, startingCapital, sessionProfit, targetWinCount, currentWinCount, updateLastActivity]);
 
   // Export functions
   const exportToCSV = useCallback(() => {
@@ -886,6 +1011,8 @@ const LiveTracker = () => {
               originalBetAmount: chanceOriginalBet || 0
             }
           });
+          // Update last activity timestamp
+          await updateLastActivity();
         } catch (error) {
           console.error('Failed to save chance multiplier result to database:', error);
         }
@@ -920,6 +1047,8 @@ const LiveTracker = () => {
               originalBetAmount: chanceIsPending ? chanceOriginalBet : 0
             }
           });
+          // Update last activity timestamp
+          await updateLastActivity();
         } catch (error) {
           console.error('Failed to save chance cash result to database:', error);
         }
@@ -944,6 +1073,8 @@ const LiveTracker = () => {
           capitalAfter: currentCapital,
           martingaleLevel: consecutiveLosses
         });
+        // Update last activity timestamp
+        await updateLastActivity();
       } catch (error) {
         console.error('Failed to save skipped chance result to database:', error);
       }
