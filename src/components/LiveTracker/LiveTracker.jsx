@@ -175,8 +175,8 @@ const LiveTracker = () => {
 
     const last3Condition = getLast3RollsCondition();
 
-    // Handle L3 Only strategy (for Flat Betting mode)
-    if (bettingStrategy === 'flat') {
+    // Handle L3 Only strategy (can be used with both Flat Betting and Martingale modes)
+    if (conditionStrategy === 'l3_only') {
       const shouldBet = (last3Condition === 'Bet');
       const reason = shouldBet 
         ? `✅ Betting Enabled: L3 Only (${last3Condition})`
@@ -190,35 +190,45 @@ const LiveTracker = () => {
       };
     }
 
-    // Handle HZ + L3 dual condition strategy (for Martingale mode)
-    const hotZoneStatus = getCurrentStatus();
-    if (!hotZoneStatus || !isAnalysisActive) {
+    // Handle HZ + L3 dual condition strategy (can be used with Martingale mode)
+    if (conditionStrategy === 'hz_l3') {
+      const hotZoneStatus = getCurrentStatus();
+      if (!hotZoneStatus || !isAnalysisActive) {
+        return {
+          shouldBet: false,
+          reason: 'Hot Zone: Analyzing...',
+          hotZoneCondition: 'Analyzing',
+          last3Condition
+        };
+      }
+
+      // Convert hot zone status to betting condition
+      const hotZoneCondition = (hotZoneStatus.status === 'Hot' || hotZoneStatus.status === 'Warming') 
+        ? 'Bet' : 'Do Not Bet';
+      
+      // Both conditions must be "Bet" for betting to be enabled
+      const shouldBet = (hotZoneCondition === 'Bet' && last3Condition === 'Bet');
+      
+      const reason = shouldBet 
+        ? `✅ Betting Enabled: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`
+        : `🛑 Betting Skipped: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`;
+
       return {
-        shouldBet: false,
-        reason: 'Hot Zone: Analyzing...',
-        hotZoneCondition: 'Analyzing',
+        shouldBet,
+        reason,
+        hotZoneCondition,
         last3Condition
       };
     }
 
-    // Convert hot zone status to betting condition
-    const hotZoneCondition = (hotZoneStatus.status === 'Hot' || hotZoneStatus.status === 'Warming') 
-      ? 'Bet' : 'Do Not Bet';
-    
-    // Both conditions must be "Bet" for betting to be enabled
-    const shouldBet = (hotZoneCondition === 'Bet' && last3Condition === 'Bet');
-    
-    const reason = shouldBet 
-      ? `✅ Betting Enabled: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`
-      : `🛑 Betting Skipped: Hot Zone (${hotZoneCondition}) + Last 3 Rolls (${last3Condition})`;
-
+    // Fallback for unknown strategy
     return {
-      shouldBet,
-      reason,
-      hotZoneCondition,
+      shouldBet: false,
+      reason: 'Unknown strategy',
+      hotZoneCondition: 'N/A',
       last3Condition
     };
-  }, [getCurrentStatus, isAnalysisActive, results, bettingStrategy]);
+  }, [getCurrentStatus, isAnalysisActive, results, conditionStrategy]);
 
 
 
@@ -1021,6 +1031,17 @@ const LiveTracker = () => {
   };
 
   const handleChanceModalCash = async (amount) => {
+    // Calculate the expected new capital before calling handleCashPrize
+    let expectedNewCapital;
+    if (chanceIsPending && chancePendingMultiplier > 0) {
+      // Case B: Multiplier + Cash
+      const multiplierWin = chanceOriginalBet * chancePendingMultiplier;
+      expectedNewCapital = currentCapital + multiplierWin + amount;
+    } else {
+      // Scenario 1: Simple cash prize
+      expectedNewCapital = currentCapital + amount;
+    }
+    
     const result = handleCashPrize(amount);
     if (result.success) {
       const newResults = [...results, 'chance'];
@@ -1031,15 +1052,11 @@ const LiveTracker = () => {
       // Save chance result to database
       if (sessionActive && currentSessionId) {
         try {
-          // Calculate correct capital using the profit/loss from handleCashPrize
-          // This avoids double-counting the cash prize amount
-          const capitalAfterCashPrize = currentCapital + result.amount;
-          
           await addResultToDb(currentSessionId, {
             resultValue: 'chance',
-            betAmount: chanceIsPending ? chanceOriginalBet : 0,
+            betAmount: 0, // Cash prizes don't consume bets, they are bonus amounts
             won: true, // Cash prize is an immediate win
-            capitalAfter: capitalAfterCashPrize,
+            capitalAfter: expectedNewCapital, // Use the calculated expected capital
             martingaleLevel: consecutiveLosses,
             chanceEvent: {
               eventType: 'CASH_PRIZE',
@@ -1097,8 +1114,15 @@ const LiveTracker = () => {
                   if (newMode === 'flat') {
                     setConditionStrategy('l3_only');
                   } else {
-                    setConditionStrategy('hz_l3');
+                    // For martingale, keep current strategy or default to hz_l3
+                    if (conditionStrategy !== 'l3_only' && conditionStrategy !== 'hz_l3') {
+                      setConditionStrategy('hz_l3');
+                    }
                   }
+                }}
+                strategy={conditionStrategy}
+                onStrategyChange={(newStrategy) => {
+                  setConditionStrategy(newStrategy);
                 }}
               />
 
@@ -1220,27 +1244,32 @@ const LiveTracker = () => {
                         {bettingStatus.shouldBet ? 'Place bet on "1"' : 'Do not bet'}
                       </div>
                       <div className="text-xs text-gray-500 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span>HZ: {bettingStatus.hotZoneCondition}</span>
-                          {(() => {
-                            const currentHotZoneStatus = getCurrentStatus();
-                            return currentHotZoneStatus && (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium">Zone {currentHotZoneStatus.dominantZone}</span>
-                                <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                  currentHotZoneStatus.status === 'Hot' ? 'bg-red-500 text-white' :
-                                  currentHotZoneStatus.status === 'Warming' ? 'bg-orange-500 text-white' :
-                                  currentHotZoneStatus.status === 'Cooling' ? 'bg-blue-500 text-white' :
-                                  currentHotZoneStatus.status === 'Cold' ? 'bg-gray-500 text-white' :
-                                  'bg-gray-300 text-gray-700'
-                                }`}>
-                                  {currentHotZoneStatus.status}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </div>
+                        {conditionStrategy === 'hz_l3' && (
+                          <div className="flex items-center gap-2">
+                            <span>HZ: {bettingStatus.hotZoneCondition}</span>
+                            {(() => {
+                              const currentHotZoneStatus = getCurrentStatus();
+                              return currentHotZoneStatus && (
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium">Zone {currentHotZoneStatus.dominantZone}</span>
+                                  <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                    currentHotZoneStatus.status === 'Hot' ? 'bg-red-500 text-white' :
+                                    currentHotZoneStatus.status === 'Warming' ? 'bg-orange-500 text-white' :
+                                    currentHotZoneStatus.status === 'Cooling' ? 'bg-blue-500 text-white' :
+                                    currentHotZoneStatus.status === 'Cold' ? 'bg-gray-500 text-white' :
+                                    'bg-gray-300 text-gray-700'
+                                  }`}>
+                                    {currentHotZoneStatus.status}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                         <div>L3: {bettingStatus.last3Condition}</div>
+                        <div className="text-xs text-gray-400">
+                          Strategy: {conditionStrategy === 'l3_only' ? 'L3 Only' : 'HZ + L3'}
+                        </div>
                       </div>
                     </>
                   );
@@ -1259,6 +1288,7 @@ const LiveTracker = () => {
             results={results} 
             resultTimestamps={resultTimestamps}
             resultSkipInfo={resultSkipInfo}
+            conditionStrategy={conditionStrategy}
             onCopy={copyToClipboard}
             onExport={exportToCSV}
           />

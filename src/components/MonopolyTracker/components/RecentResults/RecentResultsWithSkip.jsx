@@ -10,7 +10,7 @@ import ResultsGridWithSkip from './ResultsGridWithSkip';
  * @param {Function} onExport - Function called when export button is clicked
  * @returns {JSX.Element} RecentResults component
  */
-const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [], onCopy, onExport }) => {
+const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [], conditionStrategy, onCopy, onExport }) => {
   const totalSpins = results ? results.length : 0;
   const skippedCount = resultSkipInfo.filter(info => info?.isSkipped).length;
   const actualBetsCount = totalSpins - skippedCount;
@@ -195,6 +195,7 @@ const RecentResultsWithSkip = ({ results, resultTimestamps, resultSkipInfo = [],
         results={results} 
         resultTimestamps={resultTimestamps}
         resultSkipInfo={resultSkipInfo}
+        conditionStrategy={conditionStrategy}
       />
     </div>
   );

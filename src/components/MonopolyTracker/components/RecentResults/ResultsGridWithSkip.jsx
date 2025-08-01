@@ -7,9 +7,10 @@ import React from 'react';
  * @param {Array} resultSkipInfo - Array of skip information for each result
  * @returns {JSX.Element} ResultsGrid component
  */
-const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
+const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo, conditionStrategy }) => {
   const getResultStyle = (result, isSkipped) => {
-    if (isSkipped) {
+    // Only gray out if skipped AND using L3 Only or HZ + L3 strategy
+    if (isSkipped && (conditionStrategy === 'l3_only' || conditionStrategy === 'hz_l3')) {
       // Skipped results get grayed out style
       return 'bg-gray-200 text-gray-500 border-2 border-gray-400 opacity-60';
     }
@@ -56,7 +57,8 @@ const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
     const baseTooltip = `Result: ${result.toUpperCase()}\nTime: ${resultTimestamps[index] ? new Date(resultTimestamps[index]).toLocaleString() : 'N/A'}`;
     
     if (isSkipped) {
-      return `${baseTooltip}\n🛑 SKIPPED: ${skipReason || 'Unknown reason'}\nNo P/L impact or martingale progression`;
+      const strategyName = conditionStrategy === 'l3_only' ? 'L3 Only' : conditionStrategy === 'hz_l3' ? 'HZ + L3' : 'Unknown';
+      return `${baseTooltip}\n🛑 SKIPPED (${strategyName}): ${skipReason || 'Unknown reason'}\nNo P/L impact or martingale progression`;
     }
     
     return baseTooltip;
@@ -94,7 +96,7 @@ const ResultsGridWithSkip = ({ results, resultTimestamps, resultSkipInfo }) => {
       </div>
       
       {/* Legend */}
-      {resultSkipInfo.some(info => info?.isSkipped) && (
+      {resultSkipInfo.some(info => info?.isSkipped) && (conditionStrategy === 'l3_only' || conditionStrategy === 'hz_l3') && (
         <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <div className="text-sm text-gray-800 font-semibold mb-1">Legend:</div>
           <div className="text-xs text-gray-700">
