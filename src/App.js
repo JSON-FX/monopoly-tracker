@@ -10,6 +10,7 @@ import LoginForm from './components/Auth/LoginForm';
 import RegisterForm from './components/Auth/RegisterForm';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthWrapper from './components/Auth/AuthWrapper';
+import AdminDashboard from './components/Admin/AdminDashboard';
 import VersionChecker from './components/VersionChecker';
 import useSessionData from './hooks/useSessionData';
 
@@ -57,6 +58,11 @@ function App() {
               <Route path="/history" element={
                 <ProtectedRoute>
                   <HistoryWrapper />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute>
+                  <AdminDashboard />
                 </ProtectedRoute>
               } />
               

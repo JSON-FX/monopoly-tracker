@@ -28,12 +28,13 @@ class App {
     // Security middleware
     this.app.use(helmet());
     
-    // CORS configuration
+    // CORS configuration - allow all origins for development
     this.app.use(cors({
-      origin: config.server.frontendUrl,
+      origin: true, // Allow all origins for now
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      optionsSuccessStatus: 200 // For legacy browser support
     }));
 
 
@@ -42,13 +43,13 @@ class App {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // Request logging in development
-    if (config.server.nodeEnv === 'development') {
-      this.app.use((req, res, next) => {
-        console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-        next();
-      });
-    }
+    // Request logging with CORS debugging
+    this.app.use((req, res, next) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+      console.log(`Origin: ${req.headers.origin || 'none'}`);
+      console.log(`User-Agent: ${req.headers['user-agent'] ? req.headers['user-agent'].substring(0, 50) + '...' : 'none'}`);
+      next();
+    });
   }
 
   /**

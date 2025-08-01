@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { PlayIcon, HistoryIcon, LogOutIcon, EyeIcon, EyeOffIcon } from "lucide-react"
+import { PlayIcon, HistoryIcon, LogOutIcon, EyeIcon, EyeOffIcon, SettingsIcon } from "lucide-react"
 import { useAuth } from '../../hooks/useAuth';
 import { useFloatingCard } from '../../contexts/FloatingCardContext';
 
@@ -14,7 +14,7 @@ import {
 
 const Navigation = () => {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { isVisible: isFloatingCardVisible, toggleVisibility } = useFloatingCard();
 
   const handleLogout = () => {
@@ -61,6 +61,21 @@ const Navigation = () => {
                   </RouterLink>
                 </NavigationMenuLink>
               </NavigationMenuItem>
+              {/* Admin link - only show for admin users */}
+              {user?.isAdmin && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink 
+                    asChild 
+                    className={navigationMenuTriggerStyle()}
+                    data-active={location.pathname === '/admin' ? 'true' : undefined}
+                  >
+                    <RouterLink to="/admin" className="flex items-center gap-2">
+                      <SettingsIcon className="h-4 w-4" />
+                      Admin
+                    </RouterLink>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
             </NavigationMenuList>
           </NavigationMenu>
         </div>

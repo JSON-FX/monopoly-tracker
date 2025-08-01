@@ -84,7 +84,9 @@ class AuthController {
         middleName: user.middleName,
         lastName: user.lastName,
         initials: user.initials,
-        email: user.email
+        email: user.email,
+        isAdmin: user.isAdmin,
+        isActive: user.isActive
       }
     });
   });

@@ -10,7 +10,9 @@ class User {
     this.initials = userData.initials;
     this.email = userData.email;
     this.passwordHash = userData.passwordHash || userData.password_hash; // Handle both formats
-    this.isActive = userData.isActive !== undefined ? userData.isActive : userData.is_active;
+    // Ensure boolean conversion for MySQL TINYINT fields
+    this.isAdmin = Boolean(userData.isAdmin !== undefined ? userData.isAdmin : userData.is_admin);
+    this.isActive = Boolean(userData.isActive !== undefined ? userData.isActive : userData.is_active);
     this.createdAt = userData.createdAt || userData.created_at;
     this.updatedAt = userData.updatedAt || userData.updated_at;
   }
@@ -43,9 +45,9 @@ class User {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       const result = await User.query(`
-        INSERT INTO users (first_name, middle_name, last_name, initials, email, password_hash)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [firstName, middleName || null, lastName, initials, email, passwordHash]);
+        INSERT INTO users (first_name, middle_name, last_name, initials, email, password_hash, is_admin)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [firstName, middleName || null, lastName, initials, email, passwordHash, userData.isAdmin || false]);
 
       const userId = result.insertId;
 
@@ -101,6 +103,8 @@ class User {
         initials: userData.initials,
         email: userData.email,
         passwordHash: userData.password_hash, // Make sure this is included
+        isAdmin: userData.is_admin,
+        isActive: userData.is_active,
         createdAt: userData.created_at,
         updatedAt: userData.updated_at
       });
@@ -133,6 +137,53 @@ class User {
     }
   }
 
+  static async findAll() {
+    try {
+      const result = await User.query('SELECT * FROM users ORDER BY created_at DESC');
+      return result.map(userData => new User(userData));
+    } catch (error) {
+      console.error('User findAll error:', error);
+      throw new Error('Failed to find users: ' + error.message);
+    }
+  }
+
+  static async deleteById(userId) {
+    try {
+      // Delete user and cascade to sessions, game_results, and chance_events
+      const result = await User.query('DELETE FROM users WHERE id = ?', [userId]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('User deleteById error:', error);
+      throw new Error('Failed to delete user: ' + error.message);
+    }
+  }
+
+  static async updateRole(userId, isAdmin) {
+    try {
+      await User.query(
+        'UPDATE users SET is_admin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [isAdmin, userId]
+      );
+      return true;
+    } catch (error) {
+      console.error('User updateRole error:', error);
+      throw new Error('Failed to update user role: ' + error.message);
+    }
+  }
+
+  static async deactivateUser(userId) {
+    try {
+      await User.query(
+        'UPDATE users SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [userId]
+      );
+      return true;
+    } catch (error) {
+      console.error('User deactivateUser error:', error);
+      throw new Error('Failed to deactivate user: ' + error.message);
+    }
+  }
+
   static generateInitials(firstName, middleName, lastName) {
     const initials = [
       firstName ? firstName[0].toUpperCase() : '',
@@ -146,15 +197,16 @@ class User {
   toJSON() {
     return {
       id: this.id,
-      firstName: this.first_name,
-      middleName: this.middle_name,
-      lastName: this.last_name,
+      firstName: this.firstName,
+      middleName: this.middleName,
+      lastName: this.lastName,
       initials: this.initials,
       email: this.email,
-      createdAt: this.created_at,
-      updatedAt: this.updated_at,
-      isActive: this.is_active,
-      lastLogin: this.last_login
+      isAdmin: this.isAdmin,
+      isActive: this.isActive,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      lastLogin: this.lastLogin
     };
   }
 }
