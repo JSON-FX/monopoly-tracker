@@ -236,7 +236,7 @@ const History = ({ sessionHistory, onClose, onHistoryUpdate }) => {
       </div>
 
       {/* Sessions List */}
-      <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+      <div className="p-4 space-y-3 max-h-[800px] overflow-y-auto">
         {filteredAndPaginatedSessions.sessions.length > 0 ? (
           filteredAndPaginatedSessions.sessions.map((session) => (
             <SessionHistoryItem
